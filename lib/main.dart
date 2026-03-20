@@ -8,14 +8,13 @@ import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/product_detail_screen.dart';
 import 'screens/price_history_screen.dart';
+import 'screens/chat_screen.dart';
 import 'utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await notificationService.initialize();
   runApp(const ProviderScope(child: SmartSavingApp()));
-
-  
 }
 
 class SmartSavingApp extends StatelessWidget {
@@ -103,6 +102,17 @@ class SmartSavingApp extends StatelessWidget {
           return MaterialPageRoute(
             builder: (context) => PriceHistoryScreen(productId: productId),
           );
+        }
+        if (settings.name == '/chat') {
+          final args = settings.arguments;
+          if (args is ChatScreenArgs) {
+            return MaterialPageRoute(
+              builder: (context) => ChatScreen(
+                productId: args.productId,
+                productName: args.productName,
+              ),
+            );
+          }
         }
         return null;
       },

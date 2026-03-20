@@ -42,4 +42,14 @@ class ApiConfig {
 
   // Maximum results per search
   static const int maxResults = 10;
+
+  // Backend API base URL.
+  // Override with: --dart-define=BACKEND_BASE_URL=https://your-api-host
+  static const String backendBaseUrl = String.fromEnvironment(
+    'BACKEND_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000',
+  );
+
+  // Smart Assistant endpoint
+  static String get chatApiUrl => '$backendBaseUrl/chat';
 }
