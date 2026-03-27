@@ -1,7 +1,7 @@
 """FastAPI Smart Assistant endpoint for SmartSaving (Gemini + PostgreSQL)."""
+from __future__ import annotations
 from dotenv import load_dotenv
 load_dotenv()
-from __future__ import annotations
 
 import os
 import re
