@@ -37,6 +37,8 @@ We built this as a student project to solve a real problem we face every day.
 
 ---
 
+<!-- comment -->
+
 ## ✨ Features
 
 ### 🔐 User Accounts
