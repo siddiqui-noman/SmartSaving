@@ -1,5 +1,6 @@
 """FastAPI Smart Assistant endpoint for SmartSaving (Gemini + PostgreSQL)."""
-
+from dotenv import load_dotenv
+load_dotenv()
 from __future__ import annotations
 
 import os
@@ -40,8 +41,10 @@ _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1, max_length=2000)
-    product_id: int = Field(..., gt=0)
+    message: str
+    product_name: str
+    current_price: float
+    category: str = "Electronics"
 
 
 class ChatResponse(BaseModel):
@@ -144,7 +147,7 @@ def get_settings() -> AppSettings:
         raise ConfigError("psycopg is not installed.")
 
     database = DatabaseSettings(
-        dsn=_required_env("DATABASE_URL"),
+        dsn=os.getenv("DATABASE_URL", "dummy_dsn"),
         product_table=_identifier_env("DB_PRODUCT_TABLE", "products"),
         product_id_column=_identifier_env("DB_PRODUCT_ID_COLUMN", "id"),
         product_name_column=_identifier_env("DB_PRODUCT_NAME_COLUMN", "name"),
@@ -186,7 +189,7 @@ def get_app_settings() -> AppSettings:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-class ProductRepository:
+"""class ProductRepository:
     def __init__(self, settings: DatabaseSettings) -> None:
         self._settings = settings
 
@@ -219,13 +222,13 @@ class ProductRepository:
 
     async def _fetch_product_row(self, cursor: Any, product_id: int) -> Optional[dict]:
         query = sql.SQL(
-            """
+            ""
             SELECT
                 {product_name} AS product_name,
                 {current_price} AS current_price
             FROM {products}
             WHERE {product_id} = %s
-            """
+            ""
         ).format(
             product_name=sql.Identifier(self._settings.product_name_column),
             current_price=sql.Identifier(self._settings.current_price_column),
@@ -237,13 +240,13 @@ class ProductRepository:
 
     async def _fetch_predicted_price(self, cursor: Any, product_id: int) -> Optional[float]:
         ordered_query = sql.SQL(
-            """
+            ""
             SELECT {predicted_price} AS predicted_price
             FROM {predictions}
             WHERE {prediction_product_id} = %s
             ORDER BY {created_at} DESC NULLS LAST
             LIMIT 1
-            """
+            ""
         ).format(
             predicted_price=sql.Identifier(self._settings.predicted_price_column),
             predictions=sql.Identifier(self._settings.prediction_table),
@@ -253,12 +256,12 @@ class ProductRepository:
             created_at=sql.Identifier(self._settings.prediction_created_at_column),
         )
         fallback_query = sql.SQL(
-            """
+            ""
             SELECT {predicted_price} AS predicted_price
             FROM {predictions}
             WHERE {prediction_product_id} = %s
             LIMIT 1
-            """
+            ""
         ).format(
             predicted_price=sql.Identifier(self._settings.predicted_price_column),
             predictions=sql.Identifier(self._settings.prediction_table),
@@ -284,7 +287,7 @@ class ProductRepository:
 
     async def _fetch_price_history(self, cursor: Any, product_id: int) -> list[PricePoint]:
         query = sql.SQL(
-            """
+            ""
             SELECT
                 {history_timestamp} AS history_timestamp,
                 {history_price} AS history_price
@@ -292,7 +295,7 @@ class ProductRepository:
             WHERE {history_product_id} = %s
             ORDER BY {history_timestamp} ASC
             LIMIT %s
-            """
+            ""
         ).format(
             history_timestamp=sql.Identifier(self._settings.history_timestamp_column),
             history_price=sql.Identifier(self._settings.history_price_column),
@@ -313,14 +316,14 @@ class ProductRepository:
                     price=_to_float(row["history_price"], "history_price"),
                 )
             )
-        return points
+        return points"""
 
 
-def get_product_repository(
+"""def get_product_repository(
     settings: AppSettings = Depends(get_app_settings),
 ) -> ProductRepository:
     return ProductRepository(settings.database)
-
+"""
 
 def _to_float(value: Any, field_name: str) -> float:
     try:
@@ -360,7 +363,7 @@ def _derive_trend(history: list[PricePoint]) -> str:
     return "stable"
 
 
-def _build_prompt(snapshot: ProductSnapshot, user_message: str) -> str:
+"""def _build_prompt(snapshot: ProductSnapshot, user_message: str) -> str:
     predicted_price = (
         f"{snapshot.predicted_price:.2f}"
         if snapshot.predicted_price is not None
@@ -387,6 +390,16 @@ def _build_prompt(snapshot: ProductSnapshot, user_message: str) -> str:
         "1) Recommendation: BUY NOW or WAIT\n"
         "2) Reasoning: 2-4 short sentences in simple language.\n"
         "If predicted price is unknown, acknowledge it and use available trend/history."
+    )"""
+def _build_prompt(payload: ChatRequest) -> str:
+    return (
+        f"Product: {payload.product_name}\n"
+        f"Category: {payload.category}\n"
+        f"Current Price: ₹{payload.current_price}\n"
+        f"User Question: {payload.message}\n\n"
+        "Output format:\n"
+        "1) Recommendation: BUY NOW or WAIT\n"
+        "2) Reasoning: 2-4 short sentences."
     )
 
 
@@ -451,7 +464,7 @@ def get_gemini_assistant() -> GeminiAssistant:
     except ConfigError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-
+"""
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_assistant(
     payload: ChatRequest,
@@ -476,5 +489,22 @@ async def chat_with_assistant(
         reply = await run_in_threadpool(assistant.generate_reply, prompt)
     except GeminiServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return ChatResponse(reply=reply)"""
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat_with_assistant(
+    payload: ChatRequest,
+    assistant: GeminiAssistant = Depends(get_gemini_assistant),
+) -> ChatResponse:
+    
+    # We no longer call 'repo.get_product_snapshot'
+    # because the data is already in the 'payload'
+    prompt = _build_prompt(payload)
+
+    try:
+        reply = await run_in_threadpool(assistant.generate_reply, prompt)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Gemini Error: {exc}")
 
     return ChatResponse(reply=reply)

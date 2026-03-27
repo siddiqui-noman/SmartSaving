@@ -290,6 +290,34 @@ class AmazonService {
       updatedAt: DateTime.now(),
     );
   }
+
+  /// Send a message to the Gemini Assistant along with product context
+  Future<String> askAssistant(Product product, String userMessage) async {
+    try {
+      final response = await http.post(
+        // Replace with your actual backend URL (use 10.0.2.2 for Android Emulator)
+        Uri.parse("http://127.0.0.1:8000/chat"), 
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "message": userMessage,
+          "product_name": product.name,
+          "current_price": product.amazonPrice,
+          "category": "Electronics" // You can also add product.category if your model has it
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['reply'] as String;
+      } else {
+        print('❌ Assistant Error: ${response.statusCode} - ${response.body}');
+        return "The assistant is having trouble right now. Please try again.";
+      }
+    } catch (e) {
+      print('❌ Connection Error: $e');
+      return "Could not connect to the smart assistant.";
+    }
+  }
 }
 
 final amazonService = AmazonService();
