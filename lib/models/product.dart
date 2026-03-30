@@ -8,6 +8,7 @@ class Product {
   final double rating;
   final int reviews;
   final DateTime updatedAt;
+  final String category;
 
   Product({
     required this.id,
@@ -19,6 +20,7 @@ class Product {
     required this.rating,
     required this.reviews,
     required this.updatedAt,
+    this.category = 'General',
   });
 
   double get bestPrice =>

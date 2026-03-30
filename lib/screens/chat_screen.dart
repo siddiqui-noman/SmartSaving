@@ -1,27 +1,16 @@
 import 'package:flutter/material.dart';
-
-import '../services/chat_service.dart';
+// Ensure these paths match your project structure exactly
+import '../models/product.dart';
+import '../services/amazon_service.dart'; 
 import '../utils/constants.dart';
 
-class ChatScreenArgs {
-  const ChatScreenArgs({
-    required this.productId,
-    required this.productName,
-  });
-
-  final int productId;
-  final String productName;
-}
-
 class ChatScreen extends StatefulWidget {
+  final Product product;
+
   const ChatScreen({
     super.key,
-    required this.productId,
-    required this.productName,
+    required this.product,
   });
-
-  final int productId;
-  final String productName;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -36,10 +25,11 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    // Use the product name from the passed object
     _messages.add(
       _ChatMessage.bot(
-        'Hi! I am your Smart Assistant for ${widget.productName}. '
-        'Ask me if you should buy now or wait.',
+        'Hi! I am your Smart Assistant for ${widget.product.name}. '
+        'Ask me if you should buy now or wait!',
       ),
     );
   }
@@ -67,9 +57,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     try {
-      final reply = await chatService.sendMessage(
-        message: userText,
-        productId: widget.productId,
+      // Calling the global amazonService from amazon_service.dart
+      final reply = await amazonService.askAssistant(
+        widget.product, 
+        userText,
       );
 
       if (!mounted) return;
@@ -78,12 +69,12 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     } catch (error) {
       if (!mounted) return;
-      final message = _friendlyError(error);
-      _showSnackBar(message);
+      // Replaced ChatServiceException with generic error handling for stability
+      _showSnackBar("Connection error. Is the backend running?");
       setState(() {
         _messages.add(
           _ChatMessage.bot(
-            'Sorry, I could not fetch a response right now. $message',
+            'Sorry, I could not reach the assistant. Check your internet or backend server.',
           ),
         );
       });
@@ -94,11 +85,6 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       _scrollToBottom();
     }
-  }
-
-  String _friendlyError(Object error) {
-    if (error is ChatServiceException) return error.message;
-    return 'Something went wrong. Please try again.';
   }
 
   void _scrollToBottom() {
@@ -133,7 +119,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(AppDimensions.paddingM),
+              padding: const EdgeInsets.all(16),
               itemCount: totalItems,
               itemBuilder: (context, index) {
                 if (_isLoading && index == totalItems - 1) {
@@ -151,38 +137,28 @@ class _ChatScreenState extends State<ChatScreen> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppDimensions.paddingM,
-                AppDimensions.paddingS,
-                AppDimensions.paddingM,
-                AppDimensions.paddingM,
-              ),
+              padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _messageController,
                       textInputAction: TextInputAction.send,
-                      minLines: 1,
-                      maxLines: 4,
                       onSubmitted: (_) => _sendMessage(),
                       decoration: InputDecoration(
                         hintText: 'Ask about best time to buy...',
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppDimensions.borderRadiusL,
-                          ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppDimensions.paddingS),
+                  const SizedBox(width: 8),
                   IconButton.filled(
                     onPressed: _isLoading ? null : _sendMessage,
                     icon: const Icon(Icons.send),
                     style: IconButton.styleFrom(
                       backgroundColor: const Color(AppColors.primary),
-                      foregroundColor: Colors.white,
                     ),
                   ),
                 ],
@@ -195,53 +171,36 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
+// Support Classes for UI 
 class _ChatMessage {
-  const _ChatMessage({
-    required this.text,
-    required this.isUser,
-  });
-
-  factory _ChatMessage.user(String text) =>
-      _ChatMessage(text: text, isUser: true);
-
-  factory _ChatMessage.bot(String text) =>
-      _ChatMessage(text: text, isUser: false);
-
   final String text;
   final bool isUser;
+  const _ChatMessage({required this.text, required this.isUser});
+
+  factory _ChatMessage.user(String text) => _ChatMessage(text: text, isUser: true);
+  factory _ChatMessage.bot(String text) => _ChatMessage(text: text, isUser: false);
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({
-    required this.text,
-    required this.isUser,
-  });
-
   final String text;
   final bool isUser;
+  const _MessageBubble({required this.text, required this.isUser});
 
   @override
   Widget build(BuildContext context) {
-    final bubbleColor = isUser ? Colors.blue : Colors.grey.shade300;
-    final textColor = isUser ? Colors.white : Colors.black87;
-    final alignment = isUser ? Alignment.centerRight : Alignment.centerLeft;
-
     return Align(
-      alignment: alignment,
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppDimensions.paddingS),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppDimensions.paddingM,
-          vertical: AppDimensions.paddingS,
-        ),
-        constraints: const BoxConstraints(maxWidth: 300),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints: const BoxConstraints(maxWidth: 280),
         decoration: BoxDecoration(
-          color: bubbleColor,
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusL),
+          color: isUser ? Colors.blue : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           text,
-          style: TextStyle(color: textColor),
+          style: TextStyle(color: isUser ? Colors.white : Colors.black87),
         ),
       ),
     );
@@ -256,25 +215,22 @@ class _TypingBubble extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppDimensions.paddingS),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppDimensions.paddingM,
-          vertical: AppDimensions.paddingS,
-        ),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusL),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 16,
-              height: 16,
+              width: 14,
+              height: 14,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            SizedBox(width: AppDimensions.paddingS),
-            Text('Thinking...'),
+            SizedBox(width: 8),
+            Text('Thinking...', style: TextStyle(fontSize: 12)),
           ],
         ),
       ),

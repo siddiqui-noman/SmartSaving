@@ -64,25 +64,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          final chatProductId = _toBackendProductId(widget.productId);
-          if (chatProductId == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Assistant is unavailable for this product right now.',
-                ),
+          // Use a local variable to decide which product to send
+          final currentProduct = productAsync.value ?? widget.fallbackProduct;
+
+          if (currentProduct != null) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ChatScreen(product: currentProduct),
               ),
             );
-            return;
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Product data is still loading...')),
+            );
           }
-
-          Navigator.of(context).pushNamed(
-            '/chat',
-            arguments: ChatScreenArgs(
-              productId: chatProductId,
-              productName: chatProductName,
-            ),
-          );
         },
         backgroundColor: const Color(AppColors.primary),
         foregroundColor: Colors.white,

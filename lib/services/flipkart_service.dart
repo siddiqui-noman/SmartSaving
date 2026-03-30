@@ -289,6 +289,35 @@ class FlipkartService {
       updatedAt: DateTime.now(),
     );
   }
+
+  /// Send a message to the Gemini Assistant along with product context
+  Future<String> askAssistant(Product product, String userMessage) async {
+    try {
+      final response = await http.post(
+        // Use 10.0.2.2 for Android Emulator to reach your FastAPI server
+        Uri.parse("http://10.0.2.2:8000/chat"), 
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "message": userMessage,
+          "product_name": product.name,
+          // Note: Using amazonPrice as the 'current_price' field for the backend
+          "current_price": product.flipkartPrice, 
+          "category": "Electronics"
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['reply'] as String;
+      } else {
+        print('❌ Flipkart Assistant Error: ${response.statusCode}');
+        return "The assistant is having trouble right now.";
+      }
+    } catch (e) {
+      print('❌ Connection Error: $e');
+      return "Could not connect to the smart assistant.";
+    }
+  }
 }
 
 final flipkartService = FlipkartService();

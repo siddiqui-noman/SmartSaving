@@ -83,7 +83,6 @@ class SmartSavingApp extends StatelessWidget {
         if (settings.name == '/product-detail') {
           final arguments = settings.arguments;
           if (arguments is Product) {
-            // Passed full product object
             return MaterialPageRoute(
               builder: (context) => ProductDetailScreen(
                 productId: arguments.id,
@@ -91,28 +90,31 @@ class SmartSavingApp extends StatelessWidget {
               ),
             );
           } else if (arguments is String) {
-            // Passed only product ID (backward compatibility)
             return MaterialPageRoute(
               builder: (context) => ProductDetailScreen(productId: arguments),
             );
           }
         }
+        
         if (settings.name == '/price-history') {
           final productId = settings.arguments as String;
           return MaterialPageRoute(
             builder: (context) => PriceHistoryScreen(productId: productId),
           );
         }
+
+        // --- UPDATED CHAT ROUTE ---
         if (settings.name == '/chat') {
           final args = settings.arguments;
-          if (args is ChatScreenArgs) {
+          
+          // Check if we passed a Product object (which is what we want)
+          if (args is Product) {
             return MaterialPageRoute(
-              builder: (context) => ChatScreen(
-                productId: args.productId,
-                productName: args.productName,
-              ),
+              builder: (context) => ChatScreen(product: args),
             );
-          }
+          } 
+          // If for some reason you still use ChatScreenArgs elsewhere, 
+          // you'll need to remove that logic or update it here.
         }
         return null;
       },

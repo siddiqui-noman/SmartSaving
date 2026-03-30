@@ -255,6 +255,7 @@ class AmazonService {
             item['reviewCount'] as int? ??
             0,
         updatedAt: DateTime.now(),
+        category: item['category']?.toString() ?? 'Electronics',
       );
     } catch (e) {
       print(
@@ -296,13 +297,13 @@ class AmazonService {
     try {
       final response = await http.post(
         // Replace with your actual backend URL (use 10.0.2.2 for Android Emulator)
-        Uri.parse("http://127.0.0.1:8000/chat"), 
+        Uri.parse("http://10.0.2.2:8000/chat"), 
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "message": userMessage,
           "product_name": product.name,
           "current_price": product.amazonPrice,
-          "category": "Electronics" // You can also add product.category if your model has it
+          "category": product.category, // You can also add product.category if your model has it
         }),
       );
 
