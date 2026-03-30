@@ -23,7 +23,7 @@ class TrackedProduct {
       userId: json['userId'] as String,
       product: Product.fromJson(json['product'] as Map<String, dynamic>),
       addedAt: DateTime.parse(json['addedAt'] as String),
-      targetPrice: json['targetPrice'] as double?,
+      targetPrice: (json['targetPrice'] as num?)?.toDouble(),
       priceHistory:
           (json['priceHistory'] as List?)
               ?.map((e) => PriceSnapshot.fromJson(e))

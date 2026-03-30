@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../models/product.dart';
 import '../services/amazon_service.dart';
 import '../services/flipkart_service.dart';
-import '../models/product.dart';
 
 final amazonServiceProvider = Provider((ref) => amazonService);
 final flipkartServiceProvider = Provider((ref) => flipkartService);
@@ -36,9 +37,7 @@ class ProductsNotifier extends Notifier<AsyncValue<List<Product>>> {
   }
 
   Future<void> _searchProducts() async {
-    // If query is empty, show all mock products
     if (query.trim().isEmpty) {
-      print('⚠️  Empty query - showing all mock products');
       final mockProducts = await amazonService.searchProducts('Popular');
       state = AsyncValue.data(mockProducts);
       return;
@@ -46,16 +45,9 @@ class ProductsNotifier extends Notifier<AsyncValue<List<Product>>> {
 
     state = const AsyncValue.loading();
     try {
-      print('🔍 Provider searching for: $query');
       final amazonResults = await amazonService.searchProducts(query);
-      print('📊 Got ${amazonResults.length} results from Amazon');
-
-      if (amazonResults.isEmpty) {
-        print('⚠️  No results found, check API console logs');
-      }
       state = AsyncValue.data(amazonResults);
     } catch (e, st) {
-      print('❌ Provider search error: $e');
       state = AsyncValue.error(e, st);
     }
   }
@@ -69,7 +61,7 @@ final productDetailProvider = FutureProvider.family<Product?, String>((
 ) async {
   try {
     return await amazonService.getProduct(productId);
-  } catch (e) {
+  } catch (_) {
     return null;
   }
 });
@@ -89,8 +81,8 @@ final priceComparisonProvider = FutureProvider.family<Product, String>((
       );
 
   final results = await Future.wait([amazonFuture, flipkartFuture]);
-  final amazonPrice = results[0] as double;
-  final flipkartPrice = results[1] as double;
+  final amazonPrice = results[0];
+  final flipkartPrice = results[1];
 
   final product = await amazonService.getProduct(productId).timeout(
         detailRequestTimeout,
@@ -103,6 +95,7 @@ final priceComparisonProvider = FutureProvider.family<Product, String>((
   return Product(
     id: product.id,
     name: product.name,
+    category: product.category,
     description: product.description,
     imageUrl: product.imageUrl,
     amazonPrice: amazonPrice,
