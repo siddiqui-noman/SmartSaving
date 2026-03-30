@@ -1,6 +1,9 @@
+import 'dart:math';
+
 class Product {
   final String id;
   final String name;
+  final String category;
   final String description;
   final String imageUrl;
   final double amazonPrice;
@@ -12,6 +15,7 @@ class Product {
   Product({
     required this.id,
     required this.name,
+    this.category = 'General',
     required this.description,
     required this.imageUrl,
     required this.amazonPrice,
@@ -27,10 +31,21 @@ class Product {
   String get bestPlatform =>
       amazonPrice < flipkartPrice ? 'Amazon' : 'Flipkart';
 
+  double get priceDifference => (amazonPrice - flipkartPrice).abs();
+
+  double get savingsAmount => priceDifference;
+
+  double get savingsPercentage {
+    final reference = max(amazonPrice, flipkartPrice);
+    if (reference <= 0) return 0.0;
+    return (priceDifference / reference) * 100;
+  }
+
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['id'] as String,
       name: json['name'] as String,
+      category: json['category'] as String? ?? 'General',
       description: json['description'] as String,
       imageUrl: json['imageUrl'] as String,
       amazonPrice: (json['amazonPrice'] as num).toDouble(),
@@ -45,6 +60,7 @@ class Product {
     return {
       'id': id,
       'name': name,
+      'category': category,
       'description': description,
       'imageUrl': imageUrl,
       'amazonPrice': amazonPrice,

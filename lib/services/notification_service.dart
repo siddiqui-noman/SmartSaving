@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
+
   late FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin;
   bool _isInitialized = false;
 
@@ -22,12 +23,41 @@ class NotificationService {
 
     await _flutterLocalNotificationsPlugin.initialize(
       settings: initSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification response
-      },
+      onDidReceiveNotificationResponse: (NotificationResponse response) {},
     );
 
     _isInitialized = true;
+  }
+
+  bool shouldTriggerPriceDropAlert({
+    required double currentPrice,
+    required List<double> historicalBestPrices,
+    int lookbackDays = 7,
+  }) {
+    if (historicalBestPrices.isEmpty || currentPrice <= 0) return false;
+
+    final lookback = historicalBestPrices.length < lookbackDays
+        ? historicalBestPrices
+        : historicalBestPrices.sublist(
+            historicalBestPrices.length - lookbackDays,
+          );
+
+    final averagePrice = lookback.reduce((a, b) => a + b) / lookback.length;
+    return currentPrice < averagePrice;
+  }
+
+  double averagePriceOfLastDays(
+    List<double> historicalBestPrices, {
+    int lookbackDays = 7,
+  }) {
+    if (historicalBestPrices.isEmpty) return 0.0;
+
+    final lookback = historicalBestPrices.length < lookbackDays
+        ? historicalBestPrices
+        : historicalBestPrices.sublist(
+            historicalBestPrices.length - lookbackDays,
+          );
+    return lookback.reduce((a, b) => a + b) / lookback.length;
   }
 
   Future<void> showPriceDropNotification({
@@ -44,16 +74,12 @@ class NotificationService {
     );
 
     const iOSDetails = DarwinNotificationDetails();
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iOSDetails,
-    );
+    const details = NotificationDetails(android: androidDetails, iOS: iOSDetails);
 
     await _flutterLocalNotificationsPlugin.show(
-      id: DateTime.now().millisecond,
-      title: 'Price Dropped! 🎉',
-      body: '$productName: $oldPrice → $newPrice',
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: 'Price Dropped',
+      body: '$productName: $oldPrice -> $newPrice',
       notificationDetails: details,
       payload: 'price_drop',
     );
@@ -73,16 +99,12 @@ class NotificationService {
     );
 
     const iOSDetails = DarwinNotificationDetails();
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iOSDetails,
-    );
+    const details = NotificationDetails(android: androidDetails, iOS: iOSDetails);
 
     await _flutterLocalNotificationsPlugin.show(
-      id: DateTime.now().millisecond,
-      title: 'Alert Triggered! ✅',
-      body: '$productName is now ₹$currentPrice (Target: ₹$targetPrice)',
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: 'Alert Triggered',
+      body: '$productName is now Rs$currentPrice (Target: Rs$targetPrice)',
       notificationDetails: details,
       payload: 'price_alert',
     );
@@ -100,14 +122,10 @@ class NotificationService {
     );
 
     const iOSDetails = DarwinNotificationDetails();
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iOSDetails,
-    );
+    const details = NotificationDetails(android: androidDetails, iOS: iOSDetails);
 
     await _flutterLocalNotificationsPlugin.show(
-      id: DateTime.now().millisecond,
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       title: title,
       body: body,
       notificationDetails: details,

@@ -19,9 +19,8 @@ class PriceComparisonCard extends StatelessWidget {
     final bestPlatform = product.bestPlatform;
     final amazonPrice = product.amazonPrice;
     final flipkartPrice = product.flipkartPrice;
-    final savings =
-        (bestPrice < amazonPrice ? amazonPrice - bestPrice : 0) +
-        (bestPrice < flipkartPrice ? flipkartPrice - bestPrice : 0);
+    final savings = product.savingsAmount;
+    final savingsPercentage = product.savingsPercentage;
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -95,12 +94,18 @@ class PriceComparisonCard extends StatelessWidget {
                         ).textTheme.bodySmall?.copyWith(color: Colors.white70),
                       ),
                       Text(
-                        CurrencyFormatter.format(savings.toDouble()),
+                        CurrencyFormatter.format(savings),
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
+                      ),
+                      Text(
+                        '(${savingsPercentage.toStringAsFixed(2)}%)',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.white70),
                       ),
                     ],
                   ),
