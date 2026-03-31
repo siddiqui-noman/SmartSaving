@@ -1,155 +1,22 @@
-import 'dart:async';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'dart:math';
+
 import '../models/product.dart';
-import 'api_config.dart';
+import 'local_product_database_service.dart';
 
 class AmazonService {
-  static const List<Map<String, dynamic>> mockProducts = [
-    {
-      'id': 'prod_001',
-      'name': 'Apple iPhone 15 Pro',
-      'category': 'Smartphones',
-      'basePrice': 79999,
-      'discount': 0.05,
-      'image':
-          'https://images.unsplash.com/photo-1592286927505-1def25115558?w=300&h=300&fit=crop',
-    },
-    {
-      'id': 'prod_002',
-      'name': 'Samsung Galaxy S24',
-      'category': 'Smartphones',
-      'basePrice': 74999,
-      'discount': 0.08,
-      'image':
-          'https://images.unsplash.com/photo-1511707267537-b85faf00021e?w=300&h=300&fit=crop',
-    },
-    {
-      'id': 'prod_003',
-      'name': 'Sony WH-1000XM5 Headphones',
-      'category': 'Audio',
-      'basePrice': 22999,
-      'discount': 0.15,
-      'image':
-          'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop',
-    },
-    {
-      'id': 'prod_004',
-      'name': 'Dell XPS 13 Laptop',
-      'category': 'Computers',
-      'basePrice': 99999,
-      'discount': 0.10,
-      'image':
-          'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=300&h=300&fit=crop',
-    },
-    {
-      'id': 'prod_005',
-      'name': 'iPad Air 2024',
-      'category': 'Tablets',
-      'basePrice': 59999,
-      'discount': 0.07,
-      'image':
-          'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=300&h=300&fit=crop',
-    },
-    {
-      'id': 'prod_006',
-      'name': 'Apple Watch Series 9',
-      'category': 'Wearables',
-      'basePrice': 34999,
-      'discount': 0.06,
-      'image':
-          'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop',
-    },
-    {
-      'id': 'prod_007',
-      'name': 'Canon EOS R6 Camera',
-      'category': 'Cameras',
-      'basePrice': 189999,
-      'discount': 0.05,
-      'image':
-          'https://images.unsplash.com/photo-1617638924702-92f37fcb18ad?w=300&h=300&fit=crop',
-    },
-    {
-      'id': 'prod_008',
-      'name': 'LG 55" 4K Smart TV',
-      'category': 'TVs',
-      'basePrice': 49999,
-      'discount': 0.12,
-      'image':
-          'https://images.unsplash.com/photo-1598327318881-a07a7fbb4e50?w=300&h=300&fit=crop',
-    },
-  ];
+  final Random _random = Random();
 
-  /// Search products on Amazon using real API
   Future<List<Product>> searchProducts(String query) async {
-    if (query.isEmpty) {
-      print('⚠️  Empty search query');
-      return _getMockProducts();
-    }
-
-    try {
-      print('🔍 Searching Amazon for: $query');
-      final uri = Uri.parse(
-        ApiConfig.amazonApiUrl,
-      ).replace(queryParameters: {'q': query, 'country': 'IN'});
-
-      final response = await http
-          .get(uri, headers: ApiConfig.amazonHeaders)
-          .timeout(const Duration(seconds: ApiConfig.requestTimeout));
-
-      print('Response Status: ${response.statusCode}');
-      print('Response Body Length: ${response.body.length} chars');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print('✅ [AMAZON] Got response: ${data.runtimeType}');
-        final results = _parseAmazonResponse(data);
-        if (results.isNotEmpty) {
-          print('✅ [AMAZON] Returning ${results.length} products');
-          return results;
-        } else {
-          print('⚠️  [AMAZON] No products parsed, using mock');
-          return _getMockProducts();
-        }
-      } else {
-        print('❌ [AMAZON] Error ${response.statusCode} - using mock');
-        return _getMockProducts();
-      }
-    } catch (e) {
-      print('❌ [AMAZON] Exception: $e - using mock products');
-      print('FALLBACK: Returning mock products');
-      return _getMockProducts();
-    }
+    await _simulateApiDelay();
+    final products = localProductDatabaseService.searchProducts(query);
+    return products.map((product) => product.toProduct()).toList();
   }
 
-  /// Get single product details from Amazon
   Future<Product?> getProduct(String productId) async {
-    try {
-      print('📦 Getting Amazon product: $productId');
-      final uri = Uri.parse(
-        ApiConfig.amazonApiUrl,
-      ).replace(queryParameters: {'asin': productId});
-
-      final response = await http
-          .get(uri, headers: ApiConfig.amazonHeaders)
-          .timeout(const Duration(seconds: ApiConfig.requestTimeout));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final results = data['results'] as List? ?? [];
-        if (results.isNotEmpty) {
-          return _parseProductFromApi(results.first);
-        }
-      }
-      return null;
-    } catch (e) {
-      print('❌ Get product error: $e');
-      return null;
-    }
+    await _simulateApiDelay();
+    return localProductDatabaseService.getProductById(productId)?.toProduct();
   }
 
-  /// Get current price from Amazon
   Future<double> getCurrentPrice(String productId) async {
     try {
       final product = await getProduct(productId);
@@ -255,7 +122,6 @@ class AmazonService {
             item['reviewCount'] as int? ??
             0,
         updatedAt: DateTime.now(),
-        category: item['category']?.toString() ?? 'Electronics',
       );
     } catch (e) {
       print(
@@ -292,18 +158,17 @@ class AmazonService {
     );
   }
 
-  /// Send a message to the Gemini Assistant along with product context
   Future<String> askAssistant(Product product, String userMessage) async {
     try {
       final response = await http.post(
         // Replace with your actual backend URL (use 10.0.2.2 for Android Emulator)
-        Uri.parse("http://10.0.2.2:8000/chat"), 
+        Uri.parse("http://127.0.0.1:8000/chat"), 
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "message": userMessage,
           "product_name": product.name,
           "current_price": product.amazonPrice,
-          "category": product.category, // You can also add product.category if your model has it
+          "category": "Electronics" // You can also add product.category if your model has it
         }),
       );
 

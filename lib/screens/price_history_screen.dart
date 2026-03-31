@@ -296,10 +296,10 @@ class PriceHistoryScreen extends ConsumerWidget {
                                                   fontWeight: FontWeight.bold,
                                                   color:
                                                       prediction['trend'] ==
-                                                          'decreasing'
+                                                          'DOWN'
                                                       ? Colors.green
                                                       : prediction['trend'] ==
-                                                            'increasing'
+                                                            'UP'
                                                       ? Colors.red
                                                       : Colors.grey,
                                                 ),

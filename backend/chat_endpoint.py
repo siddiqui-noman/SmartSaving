@@ -2,6 +2,7 @@
 SmartSaving Backend - Chat Endpoint
 Updated for the new google-genai SDK
 """
+from __future__ import annotations
 import os
 from dotenv import load_dotenv
 
