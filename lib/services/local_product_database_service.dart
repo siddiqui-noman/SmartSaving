@@ -109,7 +109,7 @@ class LocalProductDatabaseService {
         description:
             'A17 Pro smartphone with premium camera setup and ProMotion display.',
         imageUrl:
-            'https://images.unsplash.com/photo-1592286927505-1def25115558?w=600&h=600&fit=crop',
+            'https://images.unsplash.com/photo-1695048132832-b41495f12eb4?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
         rating: 4.6,
         reviews: 4821,
         amazonPriceHistory: [
@@ -153,7 +153,7 @@ class LocalProductDatabaseService {
         description:
             'Flagship Android phone with dynamic AMOLED display and strong battery life.',
         imageUrl:
-            'https://images.unsplash.com/photo-1511707267537-b85faf00021e?w=600&h=600&fit=crop',
+            'https://images.unsplash.com/photo-1705585174953-9b2aa8afc174?q=80&w=1032&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
         rating: 4.4,
         reviews: 3932,
         amazonPriceHistory: [
@@ -197,7 +197,7 @@ class LocalProductDatabaseService {
         description:
             'Wireless noise-cancelling headphones with premium sound and long battery.',
         imageUrl:
-            'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&h=600&fit=crop',
+            'https://images.unsplash.com/photo-1733041055704-da53567e49da?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
         rating: 4.5,
         reviews: 2678,
         amazonPriceHistory: [
@@ -241,7 +241,7 @@ class LocalProductDatabaseService {
         description:
             'Compact performance laptop with premium build quality and high-resolution display.',
         imageUrl:
-            'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&h=600&fit=crop',
+            'https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?q=80&w=2532&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
         rating: 4.3,
         reviews: 1892,
         amazonPriceHistory: [
@@ -329,7 +329,7 @@ class LocalProductDatabaseService {
         description:
             'Advanced smartwatch with health tracking and excellent app ecosystem.',
         imageUrl:
-            'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=600&fit=crop',
+            'https://images.unsplash.com/photo-1602174528367-7ed9fc0737e4?q=80&w=1035&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
         rating: 4.4,
         reviews: 3210,
         amazonPriceHistory: [
@@ -373,7 +373,7 @@ class LocalProductDatabaseService {
         description:
             'Full-frame mirrorless camera for creators with excellent low-light performance.',
         imageUrl:
-            'https://images.unsplash.com/photo-1617638924702-92f37fcb18ad?w=600&h=600&fit=crop',
+            'https://images.unsplash.com/photo-1599664223843-9349c75196bc?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
         rating: 4.7,
         reviews: 1104,
         amazonPriceHistory: [
