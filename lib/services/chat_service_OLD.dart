@@ -69,10 +69,7 @@ class ChatService {
   }
 
   String _timeoutMessage() {
-    if (ApiConfig.backendBaseUrl.contains('10.0.2.2')) {
-      return 'Assistant server is not reachable. If you are using a real device, run with --dart-define=BACKEND_BASE_URL=http://<your-machine-ip>:8000';
-    }
-    return 'Assistant request timed out. Please try again.';
+    return 'Assistant request timed out. If your backend is running on another machine, set --dart-define=BACKEND_BASE_URL=http://<host>:8000 and try again.';
   }
 
   String _mapHttpError(http.Response response) {

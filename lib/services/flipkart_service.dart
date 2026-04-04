@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 
 import '../models/product.dart';
+import 'api_config.dart';
 import 'local_product_database_service.dart';
 
 class FlipkartService {
@@ -39,7 +40,7 @@ class FlipkartService {
   Future<String> askAssistant(Product product, String userMessage) async {
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:8000/chat'),
+        Uri.parse(ApiConfig.chatApiUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'message': userMessage,

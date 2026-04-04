@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-// Ensure these paths match your project structure exactly
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/product.dart';
-import '../services/amazon_service.dart'; 
+import '../models/tracked_product.dart';
+import '../providers/tracked_products_provider.dart';
+import '../services/chat_service.dart';
 import '../utils/constants.dart';
 
-class ChatScreen extends StatefulWidget {
+class ChatScreen extends ConsumerStatefulWidget {
   final Product product;
 
   const ChatScreen({
@@ -13,10 +16,10 @@ class ChatScreen extends StatefulWidget {
   });
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<_ChatMessage> _messages = [];
@@ -25,11 +28,11 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    // Use the product name from the passed object
     _messages.add(
       _ChatMessage.bot(
         'Hi! I am your Smart Assistant for ${widget.product.name}. '
         'Ask me if you should buy now or wait!',
+        includeInContext: false,
       ),
     );
   }
@@ -39,6 +42,34 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  TrackedProduct? _trackedProductForCurrentItem() {
+    final trackedAsync = ref.read(trackedProductsProvider);
+    return trackedAsync.maybeWhen(
+      data: (items) {
+        for (final item in items) {
+          if (item.product.id == widget.product.id) {
+            return item;
+          }
+        }
+        return null;
+      },
+      orElse: () => null,
+    );
+  }
+
+  List<ChatHistoryEntry> _historyEntries() {
+    final contextMessages = _messages.where((message) => message.includeInContext);
+    return contextMessages
+        .skip(contextMessages.length > 6 ? contextMessages.length - 6 : 0)
+        .map(
+          (message) => ChatHistoryEntry(
+            role: message.isUser ? 'user' : 'assistant',
+            message: message.text,
+          ),
+        )
+        .toList();
   }
 
   Future<void> _sendMessage() async {
@@ -57,10 +88,11 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     try {
-      // Calling the global amazonService from amazon_service.dart
-      final reply = await amazonService.askAssistant(
-        widget.product, 
-        userText,
+      final reply = await chatService.sendMessage(
+        message: userText,
+        product: widget.product,
+        trackedProduct: _trackedProductForCurrentItem(),
+        history: _historyEntries(),
       );
 
       if (!mounted) return;
@@ -69,12 +101,11 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     } catch (error) {
       if (!mounted) return;
-      // Replaced ChatServiceException with generic error handling for stability
-      _showSnackBar("Connection error. Is the backend running?");
+      _showSnackBar(error.toString());
       setState(() {
         _messages.add(
           _ChatMessage.bot(
-            'Sorry, I could not reach the assistant. Check your internet or backend server.',
+            'Sorry, I could not reach the assistant. Check your network or backend server.',
           ),
         );
       });
@@ -171,19 +202,32 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// Support Classes for UI 
 class _ChatMessage {
   final String text;
   final bool isUser;
-  const _ChatMessage({required this.text, required this.isUser});
+  final bool includeInContext;
 
-  factory _ChatMessage.user(String text) => _ChatMessage(text: text, isUser: true);
-  factory _ChatMessage.bot(String text) => _ChatMessage(text: text, isUser: false);
+  const _ChatMessage({
+    required this.text,
+    required this.isUser,
+    this.includeInContext = true,
+  });
+
+  factory _ChatMessage.user(String text) =>
+      _ChatMessage(text: text, isUser: true);
+
+  factory _ChatMessage.bot(String text, {bool includeInContext = true}) =>
+      _ChatMessage(
+        text: text,
+        isUser: false,
+        includeInContext: includeInContext,
+      );
 }
 
 class _MessageBubble extends StatelessWidget {
   final String text;
   final bool isUser;
+
   const _MessageBubble({required this.text, required this.isUser});
 
   @override
