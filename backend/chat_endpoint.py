@@ -134,6 +134,53 @@ def _summary_block(summary: Optional[HistorySummary]) -> str:
     return "\n".join(lines)
 
 
+def _rule_based_fallback(payload: ChatRequest) -> str:
+    best_price = payload.best_price or payload.current_price
+    average_7d = payload.history_summary.average_best_price_7d if payload.history_summary else None
+    lowest_30d = payload.history_summary.lowest_best_price_30d if payload.history_summary else None
+    trend_7d = payload.history_summary.trend_7d if payload.history_summary else None
+
+    recommendation = "TRACK LONGER"
+    reasons: list[str] = []
+
+    if payload.amazon_price is not None and payload.flipkart_price is not None:
+        reasons.append(
+            f"{payload.best_platform or 'Best platform'} is cheaper by Rs {round(payload.price_difference or 0)}."
+        )
+
+    if lowest_30d is not None and best_price <= lowest_30d * 1.02:
+        recommendation = "BUY NOW"
+        reasons.append("Current price is very close to the recent 30-day low.")
+    elif average_7d is not None and best_price < average_7d * 0.97:
+        recommendation = "BUY NOW"
+        reasons.append("Current price is meaningfully below the 7-day average.")
+    elif average_7d is not None and best_price > average_7d * 1.03:
+        recommendation = "WAIT"
+        reasons.append("Current price is above the recent 7-day average.")
+
+    if trend_7d == "down" and recommendation != "BUY NOW":
+        recommendation = "WAIT"
+        reasons.append("Recent trend is still moving downward.")
+    elif trend_7d == "up" and recommendation == "TRACK LONGER":
+        recommendation = "BUY NOW"
+        reasons.append("Recent trend is moving upward, so waiting may cost more.")
+
+    if payload.target_price is not None:
+        if best_price <= payload.target_price:
+            reasons.append("It has already met your target price.")
+            recommendation = "BUY NOW"
+        else:
+            reasons.append(
+                f"It is still Rs {round(best_price - payload.target_price)} above your target price."
+            )
+
+    if not reasons:
+        reasons.append("There is not enough pricing history to make a stronger call yet.")
+
+    joined = " ".join(reasons[:3])
+    return f"{recommendation}: {joined}"
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_assistant(payload: ChatRequest):
     if not GEMINI_API_KEY:
@@ -194,10 +241,7 @@ async def chat_with_assistant(payload: ChatRequest):
 
     except Exception as exc:
         print(f"Gemini SDK Error: {exc}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Error connecting to AI service: {exc}",
-        )
+        return ChatResponse(reply=_rule_based_fallback(payload))
 
 
 @router.get("/chat/status")

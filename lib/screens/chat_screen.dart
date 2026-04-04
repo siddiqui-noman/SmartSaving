@@ -138,6 +138,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final totalItems = _messages.length + (_isLoading ? 1 : 0);
+    final trackedProduct = _trackedProductForCurrentItem();
 
     return Scaffold(
       appBar: AppBar(
@@ -147,6 +148,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
+          _ChatContextBanner(
+            product: widget.product,
+            trackedProduct: trackedProduct,
+          ),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -246,6 +251,122 @@ class _MessageBubble extends StatelessWidget {
           text,
           style: TextStyle(color: isUser ? Colors.white : Colors.black87),
         ),
+      ),
+    );
+  }
+}
+
+class _ChatContextBanner extends StatelessWidget {
+  const _ChatContextBanner({
+    required this.product,
+    required this.trackedProduct,
+  });
+
+  final Product product;
+  final TrackedProduct? trackedProduct;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final chips = <Widget>[
+      _InfoChip(
+        icon: Icons.storefront_outlined,
+        label: '${product.bestPlatform} best',
+      ),
+      _InfoChip(
+        icon: Icons.currency_rupee,
+        label: product.bestPrice.round().toString(),
+      ),
+      _InfoChip(
+        icon: Icons.trending_down,
+        label: 'Save ${product.priceDifference.round()}',
+      ),
+    ];
+
+    if (trackedProduct != null) {
+      chips.add(
+        _InfoChip(
+          icon: Icons.favorite,
+          label: 'Tracked',
+        ),
+      );
+      if (trackedProduct?.targetPrice != null) {
+        chips.add(
+          _InfoChip(
+            icon: Icons.notifications_active_outlined,
+            label: 'Target ${trackedProduct!.targetPrice!.round()}',
+          ),
+        );
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      decoration: BoxDecoration(
+        color: const Color(AppColors.primary).withOpacity(0.08),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.black.withOpacity(0.06),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            product.name,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Ask about timing, platform choice, savings, or whether this is near a recent low.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.black.withOpacity(0.68),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: chips,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.black.withOpacity(0.08)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(AppColors.primary)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }
