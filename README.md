@@ -33,8 +33,6 @@ It's an app where you can:
 
 We built this as a student project to solve a real problem we face every day.
 
-**Made by**: 3 students who were tired of comparing prices manually 😅
-
 ---
 
 <!-- comment -->
