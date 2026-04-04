@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:math';
+
+import 'package:http/http.dart' as http;
 
 import '../models/product.dart';
 import 'local_product_database_service.dart';
@@ -22,60 +25,43 @@ class AmazonService {
       final product = await getProduct(productId);
       return product?.amazonPrice ?? 0.0;
     } catch (e) {
-      print('❌ Get price error: $e');
+      print('Get price error: $e');
       return 0.0;
     }
   }
 
-  /// Parse Amazon API response
+  List<double> getPriceHistory(String productId) {
+    return localProductDatabaseService.getAmazonPriceHistory(productId);
+  }
+
+  // Future-facing parser for real Amazon API integration.
   List<Product> _parseAmazonResponse(dynamic data) {
     final results = <Product>[];
     try {
-      print('🔍 Looking for results key in response...');
-
-      // Try different possible response structures
       List? items = data['results'] as List?;
-      if (items == null) {
-        print('⚠️  No "results" key found');
-        // Try other possible response formats
-        items = data['data'] as List?;
-      }
-      if (items == null) {
-        items = data['products'] as List?;
-      }
+      items ??= data['data'] as List?;
+      items ??= data['products'] as List?;
       if (items == null && data is List) {
         items = data;
       }
 
       items ??= [];
-      print('📦 Found ${items.length} items to parse');
-      print(
-        'First item (if exists): ${items.isNotEmpty ? items.first : "EMPTY"}',
-      );
-
-      for (var item in items) {
+      for (final item in items) {
         final product = _parseProductFromApi(item);
         if (product != null) {
           results.add(product);
         }
       }
-      print('✅ Parsed ${results.length} products from Amazon');
     } catch (e, st) {
-      print('❌ Parse error: $e');
+      print('Parse error: $e');
       print('Stack: $st');
     }
+
     return results.isNotEmpty ? results : _getMockProducts();
   }
 
-  /// Parse single product from API response
   Product? _parseProductFromApi(dynamic item) {
     try {
-      // Debug: show available keys
-      if (item is Map) {
-        print('📌 Item keys: ${(item as Map).keys.toList()}');
-      }
-
-      // Get image URL - try multiple possible field names
       String imageUrl = '';
       if (item['image'] != null) {
         imageUrl = item['image'].toString();
@@ -87,7 +73,6 @@ class AmazonService {
         imageUrl = item['productImage'].toString();
       }
 
-      // If no image from API, use placeholder
       if (imageUrl.isEmpty) {
         final productName =
             item['title']?.toString() ?? item['name']?.toString() ?? 'Product';
@@ -99,6 +84,7 @@ class AmazonService {
         id: item['asin']?.toString() ?? item['id']?.toString() ?? 'unknown',
         name:
             item['title']?.toString() ?? item['name']?.toString() ?? 'Unknown',
+        category: item['category']?.toString() ?? 'General',
         description:
             item['description']?.toString() ??
             item['productDescription']?.toString() ??
@@ -124,16 +110,14 @@ class AmazonService {
         updatedAt: DateTime.now(),
       );
     } catch (e) {
-      print(
-        '❌ Parse product error: $e, item keys: ${item is Map ? (item as Map).keys.toList() : "not a map"}',
-      );
+      print('Parse product error: $e');
       return null;
     }
   }
 
-  /// Get mock products as fallback
   List<Product> _getMockProducts() {
-    return mockProducts.map((data) => _createProduct(data)).toList();
+    final products = localProductDatabaseService.searchProducts('Popular');
+    return products.map((product) => product.toProduct()).toList();
   }
 
   Product _createProduct(Map<String, dynamic> data) {
@@ -145,6 +129,7 @@ class AmazonService {
     return Product(
       id: data['id'] as String,
       name: data['name'] as String,
+      category: data['category'] as String? ?? 'General',
       description:
           'Premium ${data['category']} product with excellent features',
       imageUrl:
@@ -161,14 +146,13 @@ class AmazonService {
   Future<String> askAssistant(Product product, String userMessage) async {
     try {
       final response = await http.post(
-        // Replace with your actual backend URL (use 10.0.2.2 for Android Emulator)
-        Uri.parse("http://10.0.2.2:8000/chat"), 
-        headers: {"Content-Type": "application/json"},
+        Uri.parse('http://10.0.2.2:8000/chat'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "message": userMessage,
-          "product_name": product.name,
-          "current_price": product.amazonPrice,
-          "category": "Electronics" // You can also add product.category if your model has it
+          'message': userMessage,
+          'product_name': product.name,
+          'current_price': product.amazonPrice,
+          'category': 'Electronics',
         }),
       );
 
@@ -176,13 +160,18 @@ class AmazonService {
         final data = jsonDecode(response.body);
         return data['reply'] as String;
       } else {
-        print('❌ Assistant Error: ${response.statusCode} - ${response.body}');
-        return "The assistant is having trouble right now. Please try again.";
+        print('Assistant error: ${response.statusCode} - ${response.body}');
+        return 'The assistant is having trouble right now. Please try again.';
       }
     } catch (e) {
-      print('❌ Connection Error: $e');
-      return "Could not connect to the smart assistant.";
+      print('Connection error: $e');
+      return 'Could not connect to the smart assistant.';
     }
+  }
+
+  Future<void> _simulateApiDelay() async {
+    final delayMs = 1000 + _random.nextInt(1001);
+    await Future.delayed(Duration(milliseconds: delayMs));
   }
 }
 

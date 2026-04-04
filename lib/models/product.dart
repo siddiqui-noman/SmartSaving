@@ -11,7 +11,6 @@ class Product {
   final double rating;
   final int reviews;
   final DateTime updatedAt;
-  final String category;
 
   Product({
     required this.id,
