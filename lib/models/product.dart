@@ -15,7 +15,6 @@ class Product {
   Product({
     required this.id,
     required this.name,
-    this.category = 'General',
     required this.description,
     required this.imageUrl,
     required this.amazonPrice,
@@ -23,6 +22,7 @@ class Product {
     required this.rating,
     required this.reviews,
     required this.updatedAt,
+    this.category = 'General',
   });
 
   double get bestPrice =>

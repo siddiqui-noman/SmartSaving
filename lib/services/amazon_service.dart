@@ -18,34 +18,127 @@ class AmazonService {
   }
 
   Future<double> getCurrentPrice(String productId) async {
-    await _simulateApiDelay();
-    return localProductDatabaseService.getProductById(productId)?.currentAmazonPrice ??
-        0.0;
+    try {
+      final product = await getProduct(productId);
+      return product?.amazonPrice ?? 0.0;
+    } catch (e) {
+      print('Get price error: $e');
+      return 0.0;
+    }
   }
 
   List<double> getPriceHistory(String productId) {
     return localProductDatabaseService.getAmazonPriceHistory(productId);
   }
 
-  Future<String> askAssistant(Product product, String userMessage) async {
-    await Future.delayed(const Duration(milliseconds: 700));
-    final input = userMessage.trim().toLowerCase();
+  // Future-facing parser for real Amazon API integration.
+  List<Product> _parseAmazonResponse(dynamic data) {
+    final results = <Product>[];
+    try {
+      List? items = data['results'] as List?;
+      items ??= data['data'] as List?;
+      items ??= data['products'] as List?;
+      if (items == null && data is List) {
+        items = data;
+      }
 
-    if (input.isEmpty) {
-      return 'Ask me about price trend, best platform, or expected savings for this product.';
+      items ??= [];
+      for (final item in items) {
+        final product = _parseProductFromApi(item);
+        if (product != null) {
+          results.add(product);
+        }
+      }
+    } catch (e, st) {
+      print('Parse error: $e');
+      print('Stack: $st');
     }
 
-    final bestPlatform = product.bestPlatform;
-    final savings = product.savingsAmount.round();
-    final trendHint = product.amazonPrice <= product.flipkartPrice
-        ? 'Amazon currently has the better value.'
-        : 'Flipkart currently has the better value.';
-
-    return 'For ${product.name}, the best price right now is on $bestPlatform. '
-        'You can save around Rs $savings compared to the higher platform price. '
-        '$trendHint';
+    return results.isNotEmpty ? results : _getMockProducts();
   }
 
+  Product? _parseProductFromApi(dynamic item) {
+    try {
+      String imageUrl = '';
+      if (item['image'] != null) {
+        imageUrl = item['image'].toString();
+      } else if (item['thumbnail'] != null) {
+        imageUrl = item['thumbnail'].toString();
+      } else if (item['imageUrl'] != null) {
+        imageUrl = item['imageUrl'].toString();
+      } else if (item['productImage'] != null) {
+        imageUrl = item['productImage'].toString();
+      }
+
+      if (imageUrl.isEmpty) {
+        final productName =
+            item['title']?.toString() ?? item['name']?.toString() ?? 'Product';
+        imageUrl =
+            'https://via.placeholder.com/300x300?text=${Uri.encodeComponent(productName)}';
+      }
+
+      return Product(
+        id: item['asin']?.toString() ?? item['id']?.toString() ?? 'unknown',
+        name:
+            item['title']?.toString() ?? item['name']?.toString() ?? 'Unknown',
+        category: item['category']?.toString() ?? 'General',
+        description:
+            item['description']?.toString() ??
+            item['productDescription']?.toString() ??
+            'No description',
+        imageUrl: imageUrl,
+        amazonPrice:
+            (item['price'] as num?)?.toDouble() ??
+            (item['currentPrice'] as num?)?.toDouble() ??
+            (item['offerPrice'] as num?)?.toDouble() ??
+            (item['discountedPrice'] as num?)?.toDouble() ??
+            0.0,
+        flipkartPrice: (item['price'] as num?)?.toDouble() ?? 0.0,
+        rating:
+            (item['rating'] as num?)?.toDouble() ??
+            (item['stars'] as num?)?.toDouble() ??
+            (item['productRating'] as num?)?.toDouble() ??
+            0.0,
+        reviews:
+            item['reviews'] as int? ??
+            item['numOfRatings'] as int? ??
+            item['reviewCount'] as int? ??
+            0,
+        updatedAt: DateTime.now(),
+      );
+    } catch (e) {
+      print('Parse product error: $e');
+      return null;
+    }
+  }
+
+  List<Product> _getMockProducts() {
+    final products = localProductDatabaseService.searchProducts('Popular');
+    return products.map((product) => product.toProduct()).toList();
+  }
+
+  Product _createProduct(Map<String, dynamic> data) {
+    final basePrice = data['basePrice'] as int;
+    final discount = data['discount'] as double;
+    final actualPrice = (basePrice * (1 - discount)).toDouble();
+    final imageUrl = data['image'] as String?;
+
+    return Product(
+      id: data['id'] as String,
+      name: data['name'] as String,
+      category: data['category'] as String? ?? 'General',
+      description:
+          'Premium ${data['category']} product with excellent features',
+      imageUrl:
+          imageUrl ??
+          'https://via.placeholder.com/300x300?text=${Uri.encodeComponent(data["name"])}',
+      amazonPrice: actualPrice + Random().nextDouble() * 5000,
+      flipkartPrice: actualPrice + Random().nextDouble() * 3000,
+      rating: 3.5 + Random().nextDouble() * 1.5,
+      reviews: Random().nextInt(5000) + 100,
+      updatedAt: DateTime.now(),
+    );
+  }
   Future<void> _simulateApiDelay() async {
     final delayMs = 1000 + _random.nextInt(1001);
     await Future.delayed(Duration(milliseconds: delayMs));

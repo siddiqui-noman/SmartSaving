@@ -1,23 +1,25 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:SMARTSAVING/main.dart';
+import 'package:smartsaving/models/product.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('Product computes best price fields correctly', () {
+    final product = Product(
+      id: 'prod_001',
+      name: 'Test Product',
+      category: 'Electronics',
+      description: 'Test description',
+      imageUrl: 'https://example.com/image.png',
+      amazonPrice: 54999,
+      flipkartPrice: 52999,
+      rating: 4.5,
+      reviews: 1200,
+      updatedAt: DateTime(2026, 4, 4),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(product.bestPrice, 52999);
+    expect(product.bestPlatform, 'Flipkart');
+    expect(product.priceDifference, 2000);
+    expect(product.savingsAmount, 2000);
   });
 }

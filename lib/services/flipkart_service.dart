@@ -19,7 +19,8 @@ class FlipkartService {
 
   Future<double> getCurrentPrice(String productId) async {
     await _simulateApiDelay();
-    return localProductDatabaseService.getProductById(productId)?.currentFlipkartPrice ??
+    return localProductDatabaseService.getProductById(productId)
+            ?.currentFlipkartPrice ??
         0.0;
   }
 

@@ -1,510 +1,249 @@
-"""FastAPI Smart Assistant endpoint for SmartSaving (Gemini + PostgreSQL)."""
+"""
+SmartSaving Backend - Chat Endpoint
+Updated for the new google-genai SDK
+"""
 from __future__ import annotations
-from dotenv import load_dotenv
-load_dotenv()
 
 import os
-import re
-from dataclasses import dataclass
-from functools import lru_cache
-from typing import Any, Optional
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.concurrency import run_in_threadpool
+from dotenv import load_dotenv
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from google import genai
+from google.genai import types
 
-try:
-    import google.generativeai as genai
-except ImportError:  # pragma: no cover - handled with runtime config error
-    genai = None  # type: ignore[assignment]
-
-try:
-    from psycopg import AsyncConnection, sql
-    from psycopg.rows import dict_row
-except ImportError:  # pragma: no cover - handled with runtime config error
-    AsyncConnection = None  # type: ignore[assignment]
-    dict_row = None  # type: ignore[assignment]
-    sql = None  # type: ignore[assignment]
+load_dotenv()
 
 router = APIRouter(tags=["assistant"])
 
-SYSTEM_PROMPT = """You are SmartSaving Assistant, an AI that helps users decide when to buy products.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    print("WARNING: GEMINI_API_KEY not found!")
 
-Rules:
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-* If predicted price is lower than current price -> recommend WAIT
-* If predicted price is higher -> recommend BUY NOW
-* Keep answers short and clear
-* Explain reasoning in simple language."""
 
-_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+class ChatHistoryItem(BaseModel):
+    role: str
+    message: str
+
+
+class PriceHistoryPoint(BaseModel):
+    timestamp: str
+    amazon_price: float
+    flipkart_price: float
+    best_price: float
+
+
+class HistorySummary(BaseModel):
+    points: int = 0
+    latest_best_price: Optional[float] = None
+    average_best_price_7d: Optional[float] = None
+    average_best_price_30d: Optional[float] = None
+    lowest_best_price_30d: Optional[float] = None
+    highest_best_price_30d: Optional[float] = None
+    trend_7d: Optional[str] = None
 
 
 class ChatRequest(BaseModel):
     message: str
+    product_id: Optional[str] = None
     product_name: str
     current_price: float
-    category: str = "Electronics"
+    category: str
+    amazon_price: Optional[float] = None
+    flipkart_price: Optional[float] = None
+    best_platform: Optional[str] = None
+    best_price: Optional[float] = None
+    price_difference: Optional[float] = None
+    savings_percentage: Optional[float] = None
+    rating: Optional[float] = None
+    reviews: Optional[int] = None
+    is_tracked: Optional[bool] = None
+    target_price: Optional[float] = None
+    updated_at: Optional[str] = None
+    conversation_history: list[ChatHistoryItem] = Field(default_factory=list)
+    price_history: list[PriceHistoryPoint] = Field(default_factory=list)
+    history_summary: Optional[HistorySummary] = None
 
 
 class ChatResponse(BaseModel):
     reply: str
 
 
-@dataclass(frozen=True)
-class PricePoint:
-    timestamp: str
-    price: float
+SYSTEM_PROMPT = """
+You are the SmartSaving Shopping Expert.
+Your goal is to provide concise, data-driven advice on whether a user should buy a product now or wait.
 
+PERSONALITY:
+- Professional, helpful, and slightly witty.
+- Avoid generic responses. Use the specific pricing context provided.
 
-@dataclass(frozen=True)
-class ProductSnapshot:
-    product_id: int
-    name: str
-    current_price: float
-    predicted_price: Optional[float]
-    price_trend: str
-    price_history: list[PricePoint]
+CONSTRAINTS:
+- Keep responses under 90 words.
+- Prioritize product-specific reasoning using current platform prices, tracked history, and target price when present.
+- If context is missing, say exactly what is missing instead of pretending.
 
-
-@dataclass(frozen=True)
-class DatabaseSettings:
-    dsn: str
-    product_table: str
-    product_id_column: str
-    product_name_column: str
-    current_price_column: str
-    prediction_table: str
-    prediction_product_id_column: str
-    predicted_price_column: str
-    prediction_created_at_column: str
-    history_table: str
-    history_product_id_column: str
-    history_price_column: str
-    history_timestamp_column: str
-    history_limit: int
-
-
-@dataclass(frozen=True)
-class GeminiSettings:
-    api_key: str
-    model: str
-
-
-@dataclass(frozen=True)
-class AppSettings:
-    database: DatabaseSettings
-    gemini: GeminiSettings
-
-
-class ConfigError(RuntimeError):
-    """Raised when required runtime configuration is missing."""
-
-
-class ProductDataAccessError(RuntimeError):
-    """Raised when product data cannot be read from PostgreSQL."""
-
-
-class GeminiServiceError(RuntimeError):
-    """Raised when Gemini generation fails."""
-
-
-def _required_env(name: str) -> str:
-    value = os.getenv(name, "").strip()
-    if not value:
-        raise ConfigError(f"{name} is not configured.")
-    return value
-
-
-def _identifier_env(name: str, default: str) -> str:
-    value = os.getenv(name, default).strip()
-    if not _IDENTIFIER_PATTERN.fullmatch(value):
-        raise ConfigError(
-            f"{name} has invalid SQL identifier value '{value}'. "
-            "Use only letters, numbers, and underscores."
-        )
-    return value
-
-
-def _positive_int_env(name: str, default: int) -> int:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    try:
-        value = int(raw)
-    except ValueError as exc:
-        raise ConfigError(f"{name} must be an integer.") from exc
-    if value <= 0:
-        raise ConfigError(f"{name} must be greater than 0.")
-    return value
-
-
-@lru_cache
-def get_settings() -> AppSettings:
-    if genai is None:
-        raise ConfigError("google-generativeai is not installed.")
-    if AsyncConnection is None or dict_row is None or sql is None:
-        raise ConfigError("psycopg is not installed.")
-
-    database = DatabaseSettings(
-        dsn=os.getenv("DATABASE_URL", "dummy_dsn"),
-        product_table=_identifier_env("DB_PRODUCT_TABLE", "products"),
-        product_id_column=_identifier_env("DB_PRODUCT_ID_COLUMN", "id"),
-        product_name_column=_identifier_env("DB_PRODUCT_NAME_COLUMN", "name"),
-        current_price_column=_identifier_env(
-            "DB_CURRENT_PRICE_COLUMN", "current_price"
-        ),
-        prediction_table=_identifier_env("DB_PREDICTION_TABLE", "price_predictions"),
-        prediction_product_id_column=_identifier_env(
-            "DB_PREDICTION_PRODUCT_ID_COLUMN", "product_id"
-        ),
-        predicted_price_column=_identifier_env(
-            "DB_PREDICTED_PRICE_COLUMN", "predicted_price"
-        ),
-        prediction_created_at_column=_identifier_env(
-            "DB_PREDICTION_CREATED_AT_COLUMN", "created_at"
-        ),
-        history_table=_identifier_env("DB_HISTORY_TABLE", "price_history"),
-        history_product_id_column=_identifier_env(
-            "DB_HISTORY_PRODUCT_ID_COLUMN", "product_id"
-        ),
-        history_price_column=_identifier_env("DB_HISTORY_PRICE_COLUMN", "price"),
-        history_timestamp_column=_identifier_env(
-            "DB_HISTORY_TIMESTAMP_COLUMN", "recorded_at"
-        ),
-        history_limit=_positive_int_env("DB_HISTORY_LIMIT", 30),
-    )
-    gemini = GeminiSettings(
-        api_key=_required_env("GEMINI_API_KEY"),
-        model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
-        or "gemini-1.5-flash",
-    )
-    return AppSettings(database=database, gemini=gemini)
-
-
-def get_app_settings() -> AppSettings:
-    try:
-        return get_settings()
-    except ConfigError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-"""class ProductRepository:
-    def __init__(self, settings: DatabaseSettings) -> None:
-        self._settings = settings
-
-    async def get_product_snapshot(self, product_id: int) -> Optional[ProductSnapshot]:
-        try:
-            async with await AsyncConnection.connect(self._settings.dsn) as conn:
-                async with conn.cursor(row_factory=dict_row) as cursor:
-                    product_row = await self._fetch_product_row(cursor, product_id)
-                    if product_row is None:
-                        return None
-
-                    predicted_price = await self._fetch_predicted_price(cursor, product_id)
-                    history = await self._fetch_price_history(cursor, product_id)
-                    trend = _derive_trend(history)
-
-                    return ProductSnapshot(
-                        product_id=product_id,
-                        name=str(product_row["product_name"]),
-                        current_price=_to_float(
-                            product_row["current_price"], "current_price"
-                        ),
-                        predicted_price=predicted_price,
-                        price_trend=trend,
-                        price_history=history,
-                    )
-        except ProductDataAccessError:
-            raise
-        except Exception as exc:  # pragma: no cover - driver level errors
-            raise ProductDataAccessError(str(exc)) from exc
-
-    async def _fetch_product_row(self, cursor: Any, product_id: int) -> Optional[dict]:
-        query = sql.SQL(
-            ""
-            SELECT
-                {product_name} AS product_name,
-                {current_price} AS current_price
-            FROM {products}
-            WHERE {product_id} = %s
-            ""
-        ).format(
-            product_name=sql.Identifier(self._settings.product_name_column),
-            current_price=sql.Identifier(self._settings.current_price_column),
-            products=sql.Identifier(self._settings.product_table),
-            product_id=sql.Identifier(self._settings.product_id_column),
-        )
-        await cursor.execute(query, (product_id,))
-        return await cursor.fetchone()
-
-    async def _fetch_predicted_price(self, cursor: Any, product_id: int) -> Optional[float]:
-        ordered_query = sql.SQL(
-            ""
-            SELECT {predicted_price} AS predicted_price
-            FROM {predictions}
-            WHERE {prediction_product_id} = %s
-            ORDER BY {created_at} DESC NULLS LAST
-            LIMIT 1
-            ""
-        ).format(
-            predicted_price=sql.Identifier(self._settings.predicted_price_column),
-            predictions=sql.Identifier(self._settings.prediction_table),
-            prediction_product_id=sql.Identifier(
-                self._settings.prediction_product_id_column
-            ),
-            created_at=sql.Identifier(self._settings.prediction_created_at_column),
-        )
-        fallback_query = sql.SQL(
-            ""
-            SELECT {predicted_price} AS predicted_price
-            FROM {predictions}
-            WHERE {prediction_product_id} = %s
-            LIMIT 1
-            ""
-        ).format(
-            predicted_price=sql.Identifier(self._settings.predicted_price_column),
-            predictions=sql.Identifier(self._settings.prediction_table),
-            prediction_product_id=sql.Identifier(
-                self._settings.prediction_product_id_column
-            ),
-        )
-
-        row = None
-        try:
-            await cursor.execute(ordered_query, (product_id,))
-            row = await cursor.fetchone()
-        except Exception:
-            try:
-                await cursor.execute(fallback_query, (product_id,))
-                row = await cursor.fetchone()
-            except Exception as exc:
-                raise ProductDataAccessError("Failed to fetch predicted price.") from exc
-
-        if row is None:
-            return None
-        return _to_optional_float(row.get("predicted_price"), "predicted_price")
-
-    async def _fetch_price_history(self, cursor: Any, product_id: int) -> list[PricePoint]:
-        query = sql.SQL(
-            ""
-            SELECT
-                {history_timestamp} AS history_timestamp,
-                {history_price} AS history_price
-            FROM {history}
-            WHERE {history_product_id} = %s
-            ORDER BY {history_timestamp} ASC
-            LIMIT %s
-            ""
-        ).format(
-            history_timestamp=sql.Identifier(self._settings.history_timestamp_column),
-            history_price=sql.Identifier(self._settings.history_price_column),
-            history=sql.Identifier(self._settings.history_table),
-            history_product_id=sql.Identifier(self._settings.history_product_id_column),
-        )
-        try:
-            await cursor.execute(query, (product_id, self._settings.history_limit))
-            rows = await cursor.fetchall()
-        except Exception as exc:
-            raise ProductDataAccessError("Failed to fetch price history.") from exc
-
-        points: list[PricePoint] = []
-        for row in rows:
-            points.append(
-                PricePoint(
-                    timestamp=_to_timestamp_string(row["history_timestamp"]),
-                    price=_to_float(row["history_price"], "history_price"),
-                )
-            )
-        return points"""
-
-
-"""def get_product_repository(
-    settings: AppSettings = Depends(get_app_settings),
-) -> ProductRepository:
-    return ProductRepository(settings.database)
+RULES:
+1. Compare Amazon and Flipkart when both prices are available.
+2. Use the 7-day and 30-day summaries if they are present.
+3. If the price is near a recent low, say so clearly.
+4. If a target price is set, mention whether the product is above or below it.
+5. End with a clear recommendation such as BUY NOW, WAIT, or TRACK LONGER.
 """
 
-def _to_float(value: Any, field_name: str) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError) as exc:
-        raise ProductDataAccessError(
-            f"Invalid numeric value for '{field_name}'."
-        ) from exc
+
+def _conversation_block(items: list[ChatHistoryItem]) -> str:
+    if not items:
+        return "- No prior conversation"
+    return "\n".join(f"- {item.role}: {item.message}" for item in items[-6:])
 
 
-def _to_optional_float(value: Any, field_name: str) -> Optional[float]:
-    if value is None:
-        return None
-    return _to_float(value, field_name)
-
-
-def _to_timestamp_string(value: Any) -> str:
-    if hasattr(value, "isoformat"):
-        return str(value.isoformat())
-    return str(value)
-
-
-def _derive_trend(history: list[PricePoint]) -> str:
-    if len(history) < 2:
-        return "stable"
-
-    first_price = history[0].price
-    last_price = history[-1].price
-    if first_price <= 0:
-        return "stable"
-
-    change_ratio = (last_price - first_price) / first_price
-    if change_ratio > 0.01:
-        return "increasing"
-    if change_ratio < -0.01:
-        return "decreasing"
-    return "stable"
-
-
-"""def _build_prompt(snapshot: ProductSnapshot, user_message: str) -> str:
-    predicted_price = (
-        f"{snapshot.predicted_price:.2f}"
-        if snapshot.predicted_price is not None
-        else "Unknown"
-    )
-    history_lines = (
-        "\n".join(
-            f"- {point.timestamp}: {point.price:.2f}"
-            for point in reversed(snapshot.price_history[-14:])
+def _price_history_block(items: list[PriceHistoryPoint]) -> str:
+    if not items:
+        return "- No price history available"
+    return "\n".join(
+        (
+            f"- {item.timestamp}: "
+            f"Amazon Rs {item.amazon_price}, "
+            f"Flipkart Rs {item.flipkart_price}, "
+            f"Best Rs {item.best_price}"
         )
-        if snapshot.price_history
-        else "- No history available"
+        for item in items[-10:]
     )
 
-    return (
-        f"Product: {snapshot.name}\n"
-        f"Current price: {snapshot.current_price:.2f}\n"
-        f"Predicted price: {predicted_price}\n"
-        f"Price trend: {snapshot.price_trend}\n"
-        "Price history (latest first, up to 14 points):\n"
-        f"{history_lines}\n\n"
-        f"User message: {user_message}\n\n"
-        "Output format:\n"
-        "1) Recommendation: BUY NOW or WAIT\n"
-        "2) Reasoning: 2-4 short sentences in simple language.\n"
-        "If predicted price is unknown, acknowledge it and use available trend/history."
-    )"""
-def _build_prompt(payload: ChatRequest) -> str:
-    return (
+
+def _summary_block(summary: Optional[HistorySummary]) -> str:
+    if summary is None:
+        return "- No history summary available"
+
+    lines = [f"- History points: {summary.points}"]
+    if summary.latest_best_price is not None:
+        lines.append(f"- Latest best price: Rs {summary.latest_best_price}")
+    if summary.average_best_price_7d is not None:
+        lines.append(f"- 7-day average best price: Rs {summary.average_best_price_7d:.2f}")
+    if summary.average_best_price_30d is not None:
+        lines.append(f"- 30-day average best price: Rs {summary.average_best_price_30d:.2f}")
+    if summary.lowest_best_price_30d is not None:
+        lines.append(f"- 30-day low best price: Rs {summary.lowest_best_price_30d}")
+    if summary.highest_best_price_30d is not None:
+        lines.append(f"- 30-day high best price: Rs {summary.highest_best_price_30d}")
+    if summary.trend_7d is not None:
+        lines.append(f"- 7-day trend: {summary.trend_7d}")
+    return "\n".join(lines)
+
+
+def _rule_based_fallback(payload: ChatRequest) -> str:
+    best_price = payload.best_price or payload.current_price
+    average_7d = payload.history_summary.average_best_price_7d if payload.history_summary else None
+    lowest_30d = payload.history_summary.lowest_best_price_30d if payload.history_summary else None
+    trend_7d = payload.history_summary.trend_7d if payload.history_summary else None
+
+    recommendation = "TRACK LONGER"
+    reasons: list[str] = []
+
+    if payload.amazon_price is not None and payload.flipkart_price is not None:
+        reasons.append(
+            f"{payload.best_platform or 'Best platform'} is cheaper by Rs {round(payload.price_difference or 0)}."
+        )
+
+    if lowest_30d is not None and best_price <= lowest_30d * 1.02:
+        recommendation = "BUY NOW"
+        reasons.append("Current price is very close to the recent 30-day low.")
+    elif average_7d is not None and best_price < average_7d * 0.97:
+        recommendation = "BUY NOW"
+        reasons.append("Current price is meaningfully below the 7-day average.")
+    elif average_7d is not None and best_price > average_7d * 1.03:
+        recommendation = "WAIT"
+        reasons.append("Current price is above the recent 7-day average.")
+
+    if trend_7d == "down" and recommendation != "BUY NOW":
+        recommendation = "WAIT"
+        reasons.append("Recent trend is still moving downward.")
+    elif trend_7d == "up" and recommendation == "TRACK LONGER":
+        recommendation = "BUY NOW"
+        reasons.append("Recent trend is moving upward, so waiting may cost more.")
+
+    if payload.target_price is not None:
+        if best_price <= payload.target_price:
+            reasons.append("It has already met your target price.")
+            recommendation = "BUY NOW"
+        else:
+            reasons.append(
+                f"It is still Rs {round(best_price - payload.target_price)} above your target price."
+            )
+
+    if not reasons:
+        reasons.append("There is not enough pricing history to make a stronger call yet.")
+
+    joined = " ".join(reasons[:3])
+    return f"{recommendation}: {joined}"
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat_with_assistant(payload: ChatRequest):
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="Gemini API Key missing.")
+
+    full_prompt = (
+        f"{SYSTEM_PROMPT}\n\n"
+        f"CONTEXT:\n"
+        f"Product ID: {payload.product_id or 'Unknown'}\n"
         f"Product: {payload.product_name}\n"
         f"Category: {payload.category}\n"
-        f"Current Price: ₹{payload.current_price}\n"
-        f"User Question: {payload.message}\n\n"
-        "Output format:\n"
-        "1) Recommendation: BUY NOW or WAIT\n"
-        "2) Reasoning: 2-4 short sentences."
+        f"Current Best Price: Rs {payload.current_price}\n"
+        f"Amazon Price: Rs {payload.amazon_price if payload.amazon_price is not None else 'Unknown'}\n"
+        f"Flipkart Price: Rs {payload.flipkart_price if payload.flipkart_price is not None else 'Unknown'}\n"
+        f"Best Platform: {payload.best_platform or 'Unknown'}\n"
+        f"Best Price: Rs {payload.best_price if payload.best_price is not None else 'Unknown'}\n"
+        f"Price Difference: Rs {payload.price_difference if payload.price_difference is not None else 'Unknown'}\n"
+        f"Savings Percentage: {payload.savings_percentage if payload.savings_percentage is not None else 'Unknown'}\n"
+        f"Rating: {payload.rating if payload.rating is not None else 'Unknown'}\n"
+        f"Reviews: {payload.reviews if payload.reviews is not None else 'Unknown'}\n"
+        f"Tracked in App: {payload.is_tracked if payload.is_tracked is not None else 'Unknown'}\n"
+        f"Target Price: Rs {payload.target_price if payload.target_price is not None else 'Not set'}\n"
+        f"Updated At: {payload.updated_at or 'Unknown'}\n\n"
+        f"RECENT CONVERSATION:\n{_conversation_block(payload.conversation_history)}\n\n"
+        f"PRICE HISTORY SUMMARY:\n{_summary_block(payload.history_summary)}\n\n"
+        f"RECENT PRICE HISTORY:\n{_price_history_block(payload.price_history)}\n\n"
+        f"USER QUESTION: {payload.message}"
     )
 
-
-class GeminiAssistant:
-    def __init__(self, settings: GeminiSettings) -> None:
-        self._settings = settings
-        genai.configure(api_key=settings.api_key)
-        self._model = genai.GenerativeModel(
-            model_name=settings.model,
-            system_instruction=SYSTEM_PROMPT,
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=full_prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=800,
+                safety_settings=[
+                    types.SafetySetting(
+                        category="HARM_CATEGORY_HATE_SPEECH",
+                        threshold="BLOCK_NONE",
+                    ),
+                    types.SafetySetting(
+                        category="HARM_CATEGORY_HARASSMENT",
+                        threshold="BLOCK_NONE",
+                    ),
+                ],
+            ),
         )
 
-    def generate_reply(self, prompt: str) -> str:
-        try:
-            response = self._model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.2,
-                    max_output_tokens=240,
-                ),
-            )
-        except Exception as exc:
-            raise GeminiServiceError(f"Gemini API call failed: {exc}") from exc
+        print("\n" + "=" * 30)
+        print(f"DEBUG - Full Prompt Sent: {full_prompt[:150]}...")
+        print(f"DEBUG - Full Response from Gemini: {response.text}")
+        print("=" * 30 + "\n")
 
-        text = (getattr(response, "text", None) or "").strip()
-        if text:
-            return text
+        if response.text:
+            return ChatResponse(reply=response.text.strip())
+        return ChatResponse(reply="Gemini returned an empty response.")
 
-        text = self._extract_text_from_candidates(response)
-        if text:
-            return text
-
-        raise GeminiServiceError("Gemini returned an empty response.")
-
-    @staticmethod
-    def _extract_text_from_candidates(response: Any) -> str:
-        candidates = getattr(response, "candidates", None) or []
-        for candidate in candidates:
-            content = getattr(candidate, "content", None)
-            if content is None:
-                continue
-            parts = getattr(content, "parts", None) or []
-            texts = []
-            for part in parts:
-                value = getattr(part, "text", None)
-                if value:
-                    texts.append(str(value))
-            if texts:
-                return "\n".join(texts).strip()
-        return ""
-
-
-@lru_cache
-def _get_gemini_assistant_cached() -> GeminiAssistant:
-    settings = get_settings()
-    return GeminiAssistant(settings.gemini)
-
-
-def get_gemini_assistant() -> GeminiAssistant:
-    try:
-        return _get_gemini_assistant_cached()
-    except ConfigError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-"""
-@router.post("/chat", response_model=ChatResponse)
-async def chat_with_assistant(
-    payload: ChatRequest,
-    repo: ProductRepository = Depends(get_product_repository),
-    assistant: GeminiAssistant = Depends(get_gemini_assistant),
-) -> ChatResponse:
-    user_message = payload.message.strip()
-    if not user_message:
-        raise HTTPException(status_code=400, detail="Message cannot be empty.")
-
-    try:
-        snapshot = await repo.get_product_snapshot(payload.product_id)
-    except ProductDataAccessError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-    if snapshot is None:
-        raise HTTPException(status_code=404, detail="Product not found.")
-
-    prompt = _build_prompt(snapshot, user_message)
-
-    try:
-        reply = await run_in_threadpool(assistant.generate_reply, prompt)
-    except GeminiServiceError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    return ChatResponse(reply=reply)"""
-
-@router.post("/chat", response_model=ChatResponse)
-async def chat_with_assistant(
-    payload: ChatRequest,
-    assistant: GeminiAssistant = Depends(get_gemini_assistant),
-) -> ChatResponse:
-    
-    # We no longer call 'repo.get_product_snapshot'
-    # because the data is already in the 'payload'
-    prompt = _build_prompt(payload)
-
-    try:
-        reply = await run_in_threadpool(assistant.generate_reply, prompt)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Gemini Error: {exc}")
+        print(f"Gemini SDK Error: {exc}")
+        return ChatResponse(reply=_rule_based_fallback(payload))
 
-    return ChatResponse(reply=reply)
+
+@router.get("/chat/status")
+async def get_status():
+    return {"status": "Chat endpoint is online", "sdk": "google-genai"}

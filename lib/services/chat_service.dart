@@ -4,7 +4,24 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../models/product.dart';
+import '../models/tracked_product.dart';
 import 'api_config.dart';
+
+class ChatHistoryEntry {
+  const ChatHistoryEntry({
+    required this.role,
+    required this.message,
+  });
+
+  final String role;
+  final String message;
+
+  Map<String, dynamic> toJson() => {
+        'role': role,
+        'message': message,
+      };
+}
 
 class ChatService {
   ChatService({http.Client? client}) : _client = client ?? http.Client();
@@ -14,7 +31,9 @@ class ChatService {
 
   Future<String> sendMessage({
     required String message,
-    required int productId,
+    required Product product,
+    TrackedProduct? trackedProduct,
+    List<ChatHistoryEntry> history = const [],
   }) async {
     final trimmedMessage = message.trim();
     if (trimmedMessage.isEmpty) {
@@ -26,10 +45,14 @@ class ChatService {
           .post(
             Uri.parse(ApiConfig.chatApiUrl),
             headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'message': trimmedMessage,
-              'product_id': productId,
-            }),
+            body: jsonEncode(
+              _buildPayload(
+                message: trimmedMessage,
+                product: product,
+                trackedProduct: trackedProduct,
+                history: history,
+              ),
+            ),
           )
           .timeout(_chatTimeout);
 
@@ -68,11 +91,104 @@ class ChatService {
     }
   }
 
+  Map<String, dynamic> _buildPayload({
+    required String message,
+    required Product product,
+    TrackedProduct? trackedProduct,
+    required List<ChatHistoryEntry> history,
+  }) {
+    final priceHistory = trackedProduct?.priceHistory ?? const <PriceSnapshot>[];
+    final bestPriceSeries =
+        priceHistory.map((snapshot) => snapshot.bestPrice).toList();
+    final recentPriceHistory = priceHistory.length <= 14
+        ? priceHistory
+        : priceHistory.sublist(priceHistory.length - 14);
+
+    return {
+      'message': message,
+      'product_id': product.id,
+      'product_name': product.name,
+      'category': product.category,
+      'current_price': product.bestPrice,
+      'amazon_price': product.amazonPrice,
+      'flipkart_price': product.flipkartPrice,
+      'best_platform': product.bestPlatform,
+      'best_price': product.bestPrice,
+      'price_difference': product.priceDifference,
+      'savings_percentage': product.savingsPercentage,
+      'rating': product.rating,
+      'reviews': product.reviews,
+      'is_tracked': trackedProduct != null,
+      'target_price': trackedProduct?.targetPrice,
+      'updated_at': product.updatedAt.toIso8601String(),
+      'conversation_history':
+          history.take(6).map((entry) => entry.toJson()).toList(),
+      'price_history': recentPriceHistory
+          .map(
+            (snapshot) => {
+              'timestamp': snapshot.timestamp.toIso8601String(),
+              'amazon_price': snapshot.amazonPrice,
+              'flipkart_price': snapshot.flipkartPrice,
+              'best_price': snapshot.bestPrice,
+            },
+          )
+          .toList(),
+      'history_summary': {
+        'points': bestPriceSeries.length,
+        'latest_best_price':
+            bestPriceSeries.isEmpty ? null : bestPriceSeries.last,
+        'average_best_price_7d': _averageLast(bestPriceSeries, 7),
+        'average_best_price_30d': _averageLast(bestPriceSeries, 30),
+        'lowest_best_price_30d': _minLast(bestPriceSeries, 30),
+        'highest_best_price_30d': _maxLast(bestPriceSeries, 30),
+        'trend_7d': _trendLast(bestPriceSeries, 7),
+      },
+    };
+  }
+
+  double? _averageLast(List<double> values, int count) {
+    if (values.isEmpty) return null;
+    final window = values.length <= count
+        ? values
+        : values.sublist(values.length - count);
+    return window.reduce((a, b) => a + b) / window.length;
+  }
+
+  double? _minLast(List<double> values, int count) {
+    if (values.isEmpty) return null;
+    final window = values.length <= count
+        ? values
+        : values.sublist(values.length - count);
+    return window.reduce((a, b) => a < b ? a : b);
+  }
+
+  double? _maxLast(List<double> values, int count) {
+    if (values.isEmpty) return null;
+    final window = values.length <= count
+        ? values
+        : values.sublist(values.length - count);
+    return window.reduce((a, b) => a > b ? a : b);
+  }
+
+  String? _trendLast(List<double> values, int count) {
+    if (values.length < 2) return null;
+    final window = values.length <= count
+        ? values
+        : values.sublist(values.length - count);
+    if (window.length < 2) return null;
+
+    final first = window.first;
+    final last = window.last;
+    if (first <= 0) return null;
+
+    final delta = (last - first) / first;
+    if (delta > 0.01) return 'up';
+    if (delta < -0.01) return 'down';
+    return 'stable';
+  }
+
   String _timeoutMessage() {
-    if (ApiConfig.backendBaseUrl.contains('10.0.2.2')) {
-      return 'Assistant server is not reachable. If you are using a real device, run with --dart-define=BACKEND_BASE_URL=http://<your-machine-ip>:8000';
-    }
-    return 'Assistant request timed out. Please try again.';
+    return 'Assistant request timed out. If your backend is running on another machine, set --dart-define=BACKEND_BASE_URL=http://<host>:8000 and try again.';
   }
 
   String _mapHttpError(http.Response response) {
@@ -83,9 +199,9 @@ class ChatService {
 
     switch (response.statusCode) {
       case 400:
-        return 'Please provide a valid chat message and product id.';
+        return 'Please provide a valid chat request.';
       case 404:
-        return 'Product not found for assistant context.';
+        return 'Assistant endpoint not found.';
       case 502:
         return 'Assistant model is temporarily unavailable. Please retry.';
       case 500:
@@ -103,13 +219,13 @@ class ChatService {
         if (detail != null && detail.isNotEmpty) {
           return detail;
         }
-        final message = data['message']?.toString().trim();
-        if (message != null && message.isNotEmpty) {
-          return message;
+        final responseMessage = data['message']?.toString().trim();
+        if (responseMessage != null && responseMessage.isNotEmpty) {
+          return responseMessage;
         }
       }
     } catch (_) {
-      // Ignore parse failures and fallback to status-code based message.
+      // Ignore parse failures and fallback to status-code based messages.
     }
     return null;
   }
