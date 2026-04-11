@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/product_provider.dart';
 import '../providers/tracked_products_provider.dart';
 import '../providers/auth_provider.dart';
+import 'product_list_screen.dart';
 import '../widgets/product_card.dart';
 import '../widgets/loading_skeleton.dart';
 import '../widgets/app_bar.dart';
@@ -17,18 +17,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
-  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     ref.read(trackedProductsProvider.notifier);
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   @override
@@ -71,116 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildSearchScreen() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppDimensions.paddingM),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              ref.read(searchQueryProvider.notifier).state = value;
-            },
-            decoration: InputDecoration(
-              hintText: AppStrings.searchProducts,
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppDimensions.paddingM,
-              ),
-            ),
-          ),
-        ),
-        Expanded(
-          child: Consumer(
-            builder: (context, ref, _) {
-              final productsAsync = ref.watch(productsProvider);
-
-              return productsAsync.when(
-                data: (products) {
-                  if (products.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.shopping_cart_outlined,
-                            size: 64,
-                            color: Colors.grey[300],
-                          ),
-                          const SizedBox(height: AppDimensions.paddingM),
-                          Text(
-                            AppStrings.noProducts,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      final product = products[index];
-                      final isTracked = ref.watch(
-                        isProductTrackedProvider(product.id),
-                      );
-
-                      return ProductCard(
-                        product: product,
-                        onTap: () {
-                          Navigator.of(
-                            context,
-                          ).pushNamed('/product-detail', arguments: product);
-                        },
-                        onTrackTap: () async {
-                          if (isTracked) {
-                            await ref
-                                .read(trackedProductsProvider.notifier)
-                                .removeTrackedProduct(product.id);
-                          } else {
-                            await ref
-                                .read(trackedProductsProvider.notifier)
-                                .addTrackedProduct(product);
-                          }
-                        },
-                        isTracked: isTracked,
-                      );
-                    },
-                  );
-                },
-                loading: () => const ProductListSkeleton(),
-                error: (error, stack) => Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red[300],
-                      ),
-                      const SizedBox(height: AppDimensions.paddingM),
-                      Text(
-                        AppStrings.error,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: AppDimensions.paddingM),
-                      ElevatedButton(
-                        onPressed: () {
-                          ref.refresh(productsProvider);
-                        },
-                        child: const Text(AppStrings.retry),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
+    return const ProductListScreen();
   }
 
   Widget _buildTrackedScreen() {

@@ -3,23 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/product.dart';
 import '../services/amazon_service.dart';
 import '../services/flipkart_service.dart';
+import '../services/local_product_database_service.dart';
 
 final amazonServiceProvider = Provider((ref) => amazonService);
 final flipkartServiceProvider = Provider((ref) => flipkartService);
-
-class SearchQueryNotifier extends Notifier<String> {
-  @override
-  String build() {
-    return 'Popular';
-  }
-
-  void setQuery(String query) {
-    state = query;
-  }
-}
-
-final searchQueryProvider =
-    NotifierProvider<SearchQueryNotifier, String>(SearchQueryNotifier.new);
+final localProductDatabaseServiceProvider = Provider(
+  (ref) => localProductDatabaseService,
+);
 
 final productsProvider =
     NotifierProvider<ProductsNotifier, AsyncValue<List<Product>>>(() {
@@ -27,32 +17,35 @@ final productsProvider =
 });
 
 class ProductsNotifier extends Notifier<AsyncValue<List<Product>>> {
-  late String query;
+  String _lastQuery = '';
 
   @override
   AsyncValue<List<Product>> build() {
-    query = ref.watch(searchQueryProvider);
-    _searchProducts();
-    return const AsyncValue.loading();
+    return AsyncValue.data(_loadProductsForQuery(''));
   }
 
-  Future<void> _searchProducts() async {
-    if (query.trim().isEmpty) {
-      final mockProducts = await amazonService.searchProducts('Popular');
-      state = AsyncValue.data(mockProducts);
-      return;
-    }
-
-    state = const AsyncValue.loading();
+  void searchProducts(String query) {
+    _lastQuery = query;
     try {
-      final amazonResults = await amazonService.searchProducts(query);
-      state = AsyncValue.data(amazonResults);
+      state = AsyncValue.data(_loadProductsForQuery(query));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
   }
 
-  Future<void> retry() => _searchProducts();
+  Future<void> retry() async {
+    searchProducts(_lastQuery);
+  }
+
+  List<Product> _loadProductsForQuery(String query) {
+    final simulatedProducts = ref
+        .read(localProductDatabaseServiceProvider)
+        .searchProducts(query);
+
+    return simulatedProducts
+        .map((product) => product.toProduct())
+        .toList(growable: false);
+  }
 }
 
 final productDetailProvider = FutureProvider.family<Product?, String>((

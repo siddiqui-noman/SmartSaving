@@ -70,6 +70,15 @@ class ProductCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppDimensions.paddingS),
+                  Text(
+                    product.category,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(AppColors.textSecondary),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.paddingS),
                   // Rating
                   Row(
                     children: [
