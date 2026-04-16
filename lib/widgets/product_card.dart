@@ -31,26 +31,40 @@ class ProductCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Image
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AppDimensions.borderRadiusL),
-                topRight: Radius.circular(AppDimensions.borderRadiusL),
-              ),
-              child: Container(
-                height: 200,
-                color: Colors.grey[200],
-                child: Image.network(
-                  product.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(
-                      child: Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey[400],
-                        size: 40,
-                      ),
-                    );
-                  },
+            AspectRatio(
+              aspectRatio: 16 / 10,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(AppDimensions.borderRadiusL),
+                  topRight: Radius.circular(AppDimensions.borderRadiusL),
+                ),
+                child: Container(
+                  color: Colors.grey[200],
+                  child: Image.network(
+                    product.imageUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) {
+                        return child;
+                      }
+                      return const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey[400],
+                          size: 40,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
