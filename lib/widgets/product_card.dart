@@ -3,7 +3,7 @@ import '../models/product.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/constants.dart';
 
-class ProductCard extends StatelessWidget {
+class ProductCard extends StatefulWidget {
   final Product product;
   final VoidCallback onTap;
   final VoidCallback? onTrackTap;
@@ -20,172 +20,291 @@ class ProductCard extends StatelessWidget {
   });
 
   @override
+  State<ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<ProductCard> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: Card(
-        elevation: AppDimensions.cardElevation,
-        margin: const EdgeInsets.all(AppDimensions.paddingM),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusL),
-      ),
-      clipBehavior: Clip.antiAlias, // Ensures InkWell rippling stays inside bounds
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            AspectRatio(
-              aspectRatio: 16 / 10,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppDimensions.borderRadiusL),
-                  topRight: Radius.circular(AppDimensions.borderRadiusL),
-                ),
-                child: Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Hero(
-                    tag: 'product_image_${product.id}',
-                    child: Image.network(
-                      product.imageUrl,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) {
-                          return child;
-                        }
-                        return const Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey[400],
-                            size: 40,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOutCubic,
+        child: SizedBox(
+          width: widget.width,
+          child: Card(
+            elevation: 0,
+            margin: const EdgeInsets.symmetric(
+              horizontal: AppDimensions.paddingM,
+              vertical: AppDimensions.paddingS,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(
+                color: Theme.of(context).dividerColor.withOpacity(0.05),
               ),
             ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(AppDimensions.paddingM),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Product name (Fixed height to force uniform rendering)
-                  SizedBox(
-                    height: 46,
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: Text(
-                        product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              height: 1.2,
-                            ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppDimensions.paddingS),
-                  Text(
-                    product.category,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
-                    ),
-                  ),
-                  const SizedBox(height: AppDimensions.paddingS),
-                  // Rating
-                  Row(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image Section
+                AspectRatio(
+                  aspectRatio: 16 / 10,
+                  child: Stack(
                     children: [
-                      Icon(Icons.star, color: Colors.amber, size: 16),
-                      const SizedBox(width: AppDimensions.paddingS),
-                      Text(
-                        '${product.rating.toStringAsFixed(1)} (${product.reviews})',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      Hero(
+                        tag: 'product_image_${widget.product.id}',
+                        child: Container(
+                          width: double.infinity,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          child: Image.network(
+                            widget.product.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Icon(
+                                  Icons.image_not_supported_rounded,
+                                  color: Colors.grey[400],
+                                  size: 40,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: AppDimensions.paddingM),
-                  // prices
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Best Price',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
-                                  ),
+                      // Savings Badge
+                      if (widget.product.savingsPercentage > 0)
+                        Positioned(
+                          top: 12,
+                          left: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFE53935), Color(0xFFC62828)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(100),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.red.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                CurrencyFormatter.format(product.bestPrice),
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(AppColors.success),
-                                    ),
+                            child: Text(
+                              '${widget.product.savingsPercentage.toStringAsFixed(0)}% OFF',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: AppDimensions.paddingS),
-                      Chip(
-                        label: Text(
-                          product.bestPlatform,
-                          style: const TextStyle(color: Colors.white),
+                      // Platform Badge
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(100),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                widget.product.bestPlatform == 'Amazon' 
+                                    ? Icons.shopping_basket_rounded 
+                                    : Icons.shopping_bag_rounded,
+                                size: 12,
+                                color: widget.product.bestPlatform == 'Amazon' ? Colors.orange : Colors.blue,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                widget.product.bestPlatform,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        backgroundColor: product.bestPlatform == 'Amazon'
-                            ? Colors.orange
-                            : Colors.blue,
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppDimensions.paddingM),
-                  // Track button
-                  if (onTrackTap != null)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: onTrackTap,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isTracked
-                              ? const Color(0xFFE53935)
-                              : Color(AppColors.primary),
-                        ),
-                        child: Text(
-                          isTracked ? 'Untrack' : 'Track Product',
-                          style: const TextStyle(color: Colors.white),
+                ),
+                // Content Section
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Category & Rating Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            widget.product.category.toUpperCase(),
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w800,
+                              color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.4),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                              const SizedBox(width: 4),
+                              Text(
+                                widget.product.rating.toStringAsFixed(1),
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  color: Theme.of(context).textTheme.bodySmall?.color,
+                                ),
+                              ),
+                              Text(
+                                ' (${widget.product.reviews})',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.product.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
+                          height: 1.3,
                         ),
                       ),
-                    ),
-                ],
-              ),
+                      const SizedBox(height: 16),
+                      // Price Section
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'BEST PRICE',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(AppColors.primary).withOpacity(0.5),
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    CurrencyFormatter.format(widget.product.bestPrice),
+                                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                          fontWeight: FontWeight.w900,
+                                          color: const Color(AppColors.primary),
+                                          letterSpacing: -1,
+                                        ),
+                                  ),
+                                  if (widget.product.priceDifference > 0) ...[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      CurrencyFormatter.format(
+                                        widget.product.amazonPrice > widget.product.flipkartPrice 
+                                            ? widget.product.amazonPrice 
+                                            : widget.product.flipkartPrice
+                                      ),
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        decoration: TextDecoration.lineThrough,
+                                        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.4),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Track Button
+                      if (widget.onTrackTap != null)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: widget.onTrackTap,
+                            icon: Icon(
+                              widget.isTracked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              size: 18,
+                            ),
+                            label: Text(
+                              widget.isTracked ? 'UNTRACK PRODUCT' : 'TRACK PRODUCT',
+                              style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.1, fontSize: 13),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: widget.isTracked 
+                                  ? Colors.red.withOpacity(0.1) 
+                                  : const Color(AppColors.primary),
+                              foregroundColor: widget.isTracked ? Colors.red : Colors.white,
+                              elevation: widget.isTracked ? 0 : 4,
+                              shadowColor: const Color(AppColors.primary).withOpacity(0.4),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: widget.isTracked 
+                                    ? const BorderSide(color: Colors.red, width: 1.5)
+                                    : BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
       ),
     );
   }

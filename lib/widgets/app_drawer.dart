@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
@@ -23,6 +24,8 @@ class AppDrawer extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProvider);
     final user = userAsync.value;
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final theme = Theme.of(context);
+    
     final trackedCount = ref.watch(
       trackedProductsProvider.select(
         (async) => async.maybeWhen(
@@ -33,42 +36,94 @@ class AppDrawer extends ConsumerWidget {
     );
 
     return Drawer(
-      child: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            // ── Premium User Header ──
-            UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(AppColors.primary), Color(AppColors.primaryDark)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Text(
-                  (user?.name?.isNotEmpty ?? false)
-                      ? user!.name![0].toUpperCase()
-                      : 'U',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(AppColors.primary),
+      backgroundColor: Colors.transparent, // Transparent for Glassmorphism
+      elevation: 0,
+      width: MediaQuery.of(context).size.width * 0.8,
+      child: Stack(
+        children: [
+          // Glass background
+          ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.black : Colors.white).withOpacity(0.7),
+                  border: Border(
+                    right: BorderSide(
+                      color: Colors.white.withOpacity(0.1),
+                      width: 1,
+                    ),
                   ),
                 ),
               ),
-              accountName: Text(
-                user?.name ?? 'User',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              accountEmail: Text(
-                user?.email ?? 'user@example.com',
-                style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+          children: [
+            // ── Modern Profile Header ──
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(AppColors.primary),
+                          const Color(AppColors.primaryDark),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(AppColors.primary).withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 42,
+                      backgroundColor: Colors.white,
+                      child: Text(
+                        (user?.name?.isNotEmpty ?? false)
+                            ? user!.name![0].toUpperCase()
+                            : 'U',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          color: Color(AppColors.primary),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    user?.name ?? 'User',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user?.email ?? 'user@example.com',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    height: 1,
+                    width: 60,
+                    color: theme.dividerColor.withOpacity(0.2),
+                  ),
+                ],
               ),
             ),
 
@@ -207,30 +262,39 @@ class AppDrawer extends ConsumerWidget {
               ),
             ),
 
-            // ── Footer: Logout + Version (always at bottom, never overflows) ──
-            const Divider(height: 1),
-            _DrawerItem(
-              icon: Icons.logout_rounded,
-              label: 'Logout',
-              iconColor: Colors.red,
-              textColor: Colors.red,
-              onTap: () {
-                Navigator.pop(context);
-                ref.read(currentUserProvider.notifier).logout();
-                Navigator.of(context).pushReplacementNamed('/login');
-              },
+            // ── Footer: Logout + Version ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: _DrawerItem(
+                icon: Icons.logout_rounded,
+                label: 'Logout Session',
+                iconColor: Colors.redAccent,
+                textColor: Colors.redAccent,
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(currentUserProvider.notifier).logout();
+                  Navigator.of(context).pushReplacementNamed('/login');
+                },
+              ),
             ),
             Padding(
-              padding: const EdgeInsets.only(bottom: 12, top: 4),
+              padding: const EdgeInsets.only(bottom: 20),
               child: Text(
-                'SmartSaving v1.0.0',
-                style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                'SmartSaving v1.0.0 Premium',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.4),
+                  letterSpacing: 2.0,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ],
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   void _showNotificationSettings(BuildContext context) {

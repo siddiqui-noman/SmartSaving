@@ -241,7 +241,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     );
                   },
                   child: Hero(
-                    tag: 'product_image_fullscreen_${product.id}',
+                    tag: 'product_image_${product.id}',
                     child: Container(
                       color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       child: Image.network(

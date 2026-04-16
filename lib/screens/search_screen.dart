@@ -92,59 +92,120 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildRecentSearches() {
     final recentSearches = ref.watch(recentSearchesProvider);
     
-    if (recentSearches.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.youtube_searched_for, size: 64, color: Colors.grey[300]),
-            const SizedBox(height: AppDimensions.paddingM),
-            Text('No recent searches', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[400])),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM, vertical: AppDimensions.paddingS),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        // Popular Categories Section
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Recent Searches', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-              TextButton(
-                onPressed: () {
-                  ref.read(recentSearchesProvider.notifier).clearHistory();
-                },
-                child: const Text('Clear All', style: TextStyle(color: Colors.red)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                child: Text(
+                  'POPULAR CATEGORIES',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5),
+                  ),
+                ),
               ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    _CategoryChip(icon: Icons.smartphone_rounded, label: 'Phones', onTap: () => _executeSearch('Phones')),
+                    _CategoryChip(icon: Icons.laptop_rounded, label: 'Laptops', onTap: () => _executeSearch('Laptops')),
+                    _CategoryChip(icon: Icons.headphones_rounded, label: 'Audio', onTap: () => _executeSearch('Audio')),
+                    _CategoryChip(icon: Icons.watch_rounded, label: 'Watches', onTap: () => _executeSearch('Watches')),
+                    _CategoryChip(icon: Icons.tv_rounded, label: 'TVs', onTap: () => _executeSearch('TVs')),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: recentSearches.length,
-            itemBuilder: (context, index) {
-              final query = recentSearches[index];
-              return ListTile(
-                leading: const Icon(Icons.history, color: Colors.grey),
-                title: Text(query),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () {
-                    ref.read(recentSearchesProvider.notifier).removeSearch(query);
-                  },
-                ),
-                onTap: () {
-                  _searchController.text = query;
-                  _executeSearch(query);
-                },
-              );
-            },
+
+        // Recent Searches Section
+        if (recentSearches.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'RECENT SEARCHES',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      letterSpacing: 1.5,
+                      fontWeight: FontWeight.w900,
+                      color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => ref.read(recentSearchesProvider.notifier).clearHistory(),
+                    child: const Text('Clear', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.red)),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final query = recentSearches[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: ListTile(
+                    dense: true,
+                    leading: Icon(Icons.history_rounded, size: 18, color: Colors.grey[400]),
+                    title: Text(query, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.arrow_outward_rounded, size: 16, color: Colors.grey),
+                      onPressed: () {
+                         _searchController.text = query;
+                      },
+                    ),
+                    onTap: () {
+                      _searchController.text = query;
+                      _executeSearch(query);
+                    },
+                  ),
+                );
+              },
+              childCount: recentSearches.length,
+            ),
+          ),
+        ] else
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(AppColors.primary).withOpacity(0.05),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.manage_search_rounded, size: 60, color: const Color(AppColors.primary).withOpacity(0.2)),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Search for your next deal',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -214,6 +275,30 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           const SizedBox(height: 8),
           Text(message, style: Theme.of(context).textTheme.bodySmall)
         ],
+      ),
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _CategoryChip({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: ActionChip(
+        avatar: Icon(icon, size: 16, color: const Color(AppColors.primary)),
+        label: Text(label),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        backgroundColor: Colors.transparent,
+        side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+        onPressed: onTap,
       ),
     );
   }

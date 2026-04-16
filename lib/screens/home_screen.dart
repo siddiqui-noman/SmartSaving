@@ -120,19 +120,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     SliverFillRemaining(
-                      child: Center(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.favorite_border,
-                              size: 64,
-                              color: Colors.grey[300],
+                            Container(
+                              padding: const EdgeInsets.all(30),
+                              decoration: BoxDecoration(
+                                color: const Color(AppColors.primary).withOpacity(0.05),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.favorite_rounded,
+                                size: 80,
+                                color: const Color(AppColors.primary).withOpacity(0.2),
+                              ),
                             ),
-                            const SizedBox(height: AppDimensions.paddingM),
+                            const SizedBox(height: 32),
                             Text(
-                              AppStrings.noTrackedProducts,
-                              style: Theme.of(context).textTheme.titleMedium,
+                              'Your wishlist is lonely',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Track products to see price drops and best deals across Amazon & Flipkart.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                                height: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 40),
+                            SizedBox(
+                              width: 200,
+                              child: ElevatedButton(
+                                onPressed: () => setState(() => _selectedIndex = 1),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                                ),
+                                child: const Text('Start Exploring'),
+                              ),
                             ),
                           ],
                         ),
@@ -205,90 +239,119 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return userAsync.when(
           data: (user) {
             return SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(AppDimensions.paddingL),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(AppDimensions.paddingL),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(AppColors.primary),
-                            Color(AppColors.primaryDark),
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  // Premium Profile Header
+                  Stack(
+                    children: [
+                      Container(
+                        height: 150,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              const Color(AppColors.primary),
+                              const Color(AppColors.primaryDark),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(top: 80),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: CircleAvatar(
+                                radius: 55,
+                                backgroundColor: Colors.white,
+                                child: Icon(
+                                  Icons.person_rounded,
+                                  size: 60,
+                                  color: const Color(AppColors.primary),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              user?.name ?? 'User',
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -1,
+                              ),
+                            ),
+                            Text(
+                              user?.email ?? 'user@example.com',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                              ),
+                            ),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Column(
-                        children: [
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.white,
-                            child: Icon(
-                              Icons.person,
-                              size: 50,
-                              color: const Color(AppColors.primary),
-                            ),
-                          ),
-                          const SizedBox(height: AppDimensions.paddingM),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              user?.name ?? 'User',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(height: AppDimensions.paddingS),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              user?.email ?? 'user@example.com',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: Colors.white70),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppDimensions.paddingL),
-                    ListTile(
-                      leading: const Icon(Icons.info),
-                      title: const Text('About'),
-                      subtitle: const Text('SmartSaving v1.0.0'),
-                      trailing: const Icon(Icons.arrow_forward_ios),
-                      onTap: () {},
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.privacy_tip),
-                      title: const Text('Privacy Policy'),
-                      trailing: const Icon(Icons.arrow_forward_ios),
-                      onTap: () {},
-                    ),
-                    const SizedBox(height: AppDimensions.paddingL),
-                    SizedBox(
-                      width: double.infinity,
-                      height: AppDimensions.buttonHeight,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          ref.read(currentUserProvider.notifier).logout();
-                          Navigator.of(context).pushReplacementNamed('/login');
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(AppColors.error),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Settings Categories
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionTitle(context, 'ACCOUNT SETTINGS'),
+                        _ProfileCard(
+                          items: [
+                            _ProfileItem(icon: Icons.person_outline_rounded, title: 'Edit Profile'),
+                            _ProfileItem(icon: Icons.notifications_none_rounded, title: 'Notifications Preferences'),
+                            _ProfileItem(icon: Icons.security_rounded, title: 'Security & Privacy'),
+                          ],
                         ),
-                        child: const Text(
-                          AppStrings.logout,
-                          style: TextStyle(color: Colors.white),
+                        
+                        const SizedBox(height: 24),
+                        _sectionTitle(context, 'SUPPORT & ABOUT'),
+                        _ProfileCard(
+                          items: [
+                            _ProfileItem(icon: Icons.info_outline_rounded, title: 'App Version', trailing: 'v1.0.0'),
+                            _ProfileItem(icon: Icons.description_outlined, title: 'Terms of Service'),
+                            _ProfileItem(icon: Icons.help_outline_rounded, title: 'Help Center'),
+                          ],
                         ),
-                      ),
+                        
+                        const SizedBox(height: 40),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              ref.read(currentUserProvider.notifier).logout();
+                              Navigator.of(context).pushReplacementNamed('/login');
+                            },
+                            icon: const Icon(Icons.logout_rounded, color: Colors.red),
+                            label: const Text(
+                              'Sign Out',
+                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: BorderSide(color: Colors.red.withOpacity(0.2)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 60),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -298,4 +361,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     );
   }
+
+  Widget _sectionTitle(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          letterSpacing: 2,
+          fontWeight: FontWeight.w900,
+          color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileCard extends StatelessWidget {
+  final List<_ProfileItem> items;
+  const _ProfileCard({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+       shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.05)),
+      ),
+      child: Column(
+        children: items.map((item) {
+          final isLast = items.indexOf(item) == items.length - 1;
+          return Column(
+            children: [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(AppColors.primary).withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(item.icon, size: 20, color: const Color(AppColors.primary)),
+                ),
+                title: Text(
+                  item.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                trailing: item.trailing != null 
+                  ? Text(item.trailing!, style: TextStyle(color: Colors.grey[400], fontSize: 12))
+                  : const Icon(Icons.chevron_right_rounded, size: 20),
+                onTap: () {},
+              ),
+              if (!isLast)
+                Divider(height: 1, indent: 60, color: Theme.of(context).dividerColor.withOpacity(0.5)),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _ProfileItem {
+  final IconData icon;
+  final String title;
+  final String? trailing;
+
+  _ProfileItem({required this.icon, required this.title, this.trailing});
 }
