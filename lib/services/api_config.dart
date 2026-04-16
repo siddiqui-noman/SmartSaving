@@ -44,11 +44,10 @@ class ApiConfig {
   static const int maxResults = 10;
 
   // Set this to true before building the production APK
-  static const bool isProduction = false;
+  static const bool isProduction = true;
 
   // Your Render URL (e.g. https://smartsaving.onrender.com)
-  static const String productionBaseUrl = 'https://YOUR_RENDER_URL_HERE.onrender.com';
-
+  static const String productionBaseUrl = 'https://smartsaving-backend.onrender.com';
   // Backend API base URL.
   // Override with: --dart-define=BACKEND_BASE_URL=http://<host>:8000
   static const String backendBaseUrl = isProduction 
