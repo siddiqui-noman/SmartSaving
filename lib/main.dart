@@ -10,6 +10,7 @@ import 'screens/product_detail_screen.dart';
 import 'screens/price_history_screen.dart';
 import 'screens/chat_screen.dart';
 import 'utils/constants.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,25 +28,45 @@ class SmartSavingApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(AppColors.background),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(AppColors.primary),
+          primary: const Color(AppColors.primary),
+          secondary: const Color(AppColors.accent),
+          error: const Color(AppColors.error),
+          surface: const Color(AppColors.surface),
           brightness: Brightness.light,
         ),
-        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
+        textTheme: GoogleFonts.outfitTextTheme(),
+        appBarTheme: const AppBarTheme(
+          centerTitle: true, 
+          elevation: 0,
+          backgroundColor: Color(AppColors.background),
+          foregroundColor: Color(AppColors.textPrimary),
+        ),
         inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: AppDimensions.paddingM,
             vertical: AppDimensions.paddingM,
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppDimensions.borderRadiusM),
+            borderSide: const BorderSide(color: Color(AppColors.divider)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppDimensions.borderRadiusM),
+            borderSide: const BorderSide(color: Color(AppColors.divider)),
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(AppColors.primary),
+            foregroundColor: Colors.white,
+            elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppDimensions.borderRadiusM),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadiusL),
             ),
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimensions.paddingL,
@@ -55,9 +76,10 @@ class SmartSavingApp extends StatelessWidget {
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(AppColors.primary)),
+            foregroundColor: const Color(AppColors.primary),
+            side: const BorderSide(color: Color(AppColors.primary), width: 1.5),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppDimensions.borderRadiusM),
+              borderRadius: BorderRadius.circular(AppDimensions.borderRadiusL),
             ),
             padding: const EdgeInsets.symmetric(
               horizontal: AppDimensions.paddingL,
@@ -66,9 +88,13 @@ class SmartSavingApp extends StatelessWidget {
           ),
         ),
         cardTheme: CardThemeData(
+          color: const Color(AppColors.surface),
           elevation: AppDimensions.cardElevation,
+          margin: EdgeInsets.zero,
+          shadowColor: Colors.black.withOpacity(0.04), // Soft ambient shadow
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimensions.borderRadiusL),
+            side: BorderSide(color: const Color(AppColors.divider).withOpacity(0.5)), // Sleek outline
           ),
         ),
       ),

@@ -36,9 +36,11 @@ class SmartSavingAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           Text(
             title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(color: Colors.white),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 1.2,
+                ),
           ),
         ],
       ),

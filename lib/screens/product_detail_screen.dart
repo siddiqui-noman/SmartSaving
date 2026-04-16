@@ -58,10 +58,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
 
     return Scaffold(
-      appBar: SmartSavingAppBar(
-        title: AppStrings.priceComparison,
-        onBackPressed: () => Navigator.pop(context),
-      ),
+      // The SliverAppBar inside the body handles the top app bar for premium collapsing effect
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           // Use a local variable to decide which product to send
@@ -100,19 +97,29 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             );
           }
           // Only show skeleton if no fallback available
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(AppDimensions.paddingL),
-              child: Column(
-                children: [
-                  LoadingSkeleton(height: 300, width: double.infinity),
-                  const SizedBox(height: AppDimensions.paddingL),
-                  LoadingSkeleton(height: 24, width: double.infinity),
-                  const SizedBox(height: AppDimensions.paddingS),
-                  LoadingSkeleton(height: 16, width: 200),
-                ],
+          return Column(
+            children: [
+              SmartSavingAppBar(
+                title: AppStrings.priceComparison,
+                onBackPressed: () => Navigator.pop(context),
               ),
-            ),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppDimensions.paddingL),
+                    child: Column(
+                      children: [
+                        LoadingSkeleton(height: 300, width: double.infinity),
+                        const SizedBox(height: AppDimensions.paddingL),
+                        LoadingSkeleton(height: 24, width: double.infinity),
+                        const SizedBox(height: AppDimensions.paddingS),
+                        LoadingSkeleton(height: 16, width: 200),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         },
         error: (error, stack) {
@@ -126,15 +133,25 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               showOfflineIndicator: true,
             );
           }
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                const SizedBox(height: AppDimensions.paddingM),
-                Text(AppStrings.error),
-              ],
-            ),
+          return Column(
+            children: [
+               SmartSavingAppBar(
+                title: AppStrings.priceComparison,
+                onBackPressed: () => Navigator.pop(context),
+              ),
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                      const SizedBox(height: AppDimensions.paddingM),
+                      Text(AppStrings.error),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -151,70 +168,91 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }) {
     return Stack(
       children: [
-        SingleChildScrollView(
-            child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Offline indicator
-            if (showOfflineIndicator)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppDimensions.paddingM),
-                color: Colors.orange[100],
-                child: Row(
-                  children: [
-                    Icon(Icons.cloud_off, color: Colors.orange[800], size: 20),
-                    const SizedBox(width: AppDimensions.paddingS),
-                    Expanded(
-                      child: Text(
-                        'Showing cached data - Some prices may not be up-to-date',
-                        style: TextStyle(
-                          color: Colors.orange[800],
-                          fontSize: 12,
-                        ),
-                      ),
+        CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 340.0,
+              pinned: true,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              leading: Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
                     ),
                   ],
                 ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
               ),
-            // Product image
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-              child: Container(
-                height: 300,
-                color: Colors.grey[200],
-                width: double.infinity,
-                child: Image.network(
-                  product.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(
-                      child: Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey[400],
-                        size: 60,
-                      ),
-                    );
-                  },
+              flexibleSpace: FlexibleSpaceBar(
+                background: Hero(
+                  tag: 'product_image_${product.id}',
+                  child: Container(
+                    color: Colors.grey[100],
+                    child: Image.network(
+                      product.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey[400],
+                            size: 60,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(AppDimensions.paddingL),
+            SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Product info
-                  Text(
-                    product.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
+                  // Offline indicator
+                  if (showOfflineIndicator)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppDimensions.paddingM),
+                      color: Colors.amber[100],
+                      child: Row(
+                        children: [
+                          Icon(Icons.cloud_off, color: Colors.amber[800], size: 20),
+                          const SizedBox(width: AppDimensions.paddingS),
+                          Expanded(
+                            child: Text(
+                              'Showing cached data - Some prices may not be up-to-date',
+                              style: TextStyle(
+                                color: Colors.amber[900],
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.all(AppDimensions.paddingL),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Product info safely scaled
+                        Text(
+                          product.name,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
                   const SizedBox(height: AppDimensions.paddingS),
                   Row(
                     children: [
@@ -372,11 +410,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         ),
                       ],
                     ),
+                  ],
+                ),
+              ),
                 ],
               ),
             ),
+            const SliverPadding(padding: EdgeInsets.only(bottom: 100)), // padding for bottom floating action button clearance
           ],
-        )),
+        ),
         if (showLoadingOverlay)
           IgnorePointer(
             ignoring: true,

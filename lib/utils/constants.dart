@@ -1,15 +1,16 @@
 class AppColors {
-  static const primary = 0xFF2196F3;
-  static const primaryDark = 0xFF1976D2;
-  static const accent = 0xFFFF5722;
-  static const success = 0xFF4CAF50;
-  static const warning = 0xFFFFC107;
-  static const error = 0xFFE53935;
-  static const background = 0xFFFAFAFA;
+  // Premium tech-startup aesthetics (Deep Ocean Blue / Minimalist)
+  static const primary = 0xFF2563EB; // Azure Blue
+  static const primaryDark = 0xFF1E3A8A; // Deep Oceanic Blue
+  static const accent = 0xFF10B981; // Emerald
+  static const success = 0xFF10B981;
+  static const warning = 0xFFF59E0B; // Amber
+  static const error = 0xFFEF4444; // Ruby Red
+  static const background = 0xFFF8FAFC; // Slate 50
   static const surface = 0xFFFFFFFF;
-  static const textPrimary = 0xFF212121;
-  static const textSecondary = 0xFF757575;
-  static const divider = 0xFFBDBDBD;
+  static const textPrimary = 0xFF0F172A; // Slate 900
+  static const textSecondary = 0xFF64748B; // Slate 500
+  static const divider = 0xFFE2E8F0; // Slate 200
 }
 
 class AppStrings {
@@ -73,12 +74,12 @@ class AppDimensions {
   static const paddingL = 24.0;
   static const paddingXL = 32.0;
 
-  static const borderRadiusS = 4.0;
-  static const borderRadiusM = 8.0;
-  static const borderRadiusL = 12.0;
+  static const borderRadiusS = 8.0;
+  static const borderRadiusM = 12.0;
+  static const borderRadiusL = 20.0;
 
-  static const buttonHeight = 48.0;
-  static const cardElevation = 2.0;
+  static const buttonHeight = 54.0; // Slightly larger, more premium bounds
+  static const cardElevation = 0.0; // Use subtle box shadows manually or flat designs
 }
 
 class MockData {

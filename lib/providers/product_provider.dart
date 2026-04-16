@@ -19,6 +19,8 @@ final productsProvider =
 class ProductsNotifier extends Notifier<AsyncValue<List<Product>>> {
   String _lastQuery = '';
 
+  String get lastQuery => _lastQuery;
+
   @override
   AsyncValue<List<Product>> build() {
     return AsyncValue.data(_loadProductsForQuery(''));

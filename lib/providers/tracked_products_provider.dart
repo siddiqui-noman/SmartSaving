@@ -9,6 +9,7 @@ import '../services/flipkart_service.dart';
 import '../services/notification_service.dart';
 import '../services/price_history_generator_service.dart';
 import '../services/storage_service.dart';
+import 'auth_provider.dart';
 
 final trackedProductsProvider =
     NotifierProvider<TrackedProductsNotifier, AsyncValue<List<TrackedProduct>>>(() {
@@ -23,6 +24,7 @@ class TrackedProductsNotifier extends Notifier<AsyncValue<List<TrackedProduct>>>
 
   @override
   AsyncValue<List<TrackedProduct>> build() {
+    ref.watch(currentUserProvider); // Force reload on auth state shifts
     _loadTrackedProducts();
     return const AsyncValue.data([]);
   }
@@ -92,7 +94,7 @@ class TrackedProductsNotifier extends Notifier<AsyncValue<List<TrackedProduct>>>
 
     return TrackedProduct(
       id: 'tracked_$productId',
-      userId: 'user_001',
+      userId: storageService.getUser()?.id ?? 'user_001',
       product: product,
       addedAt: DateTime.now(),
       targetPrice: _targetPrices[productId],
@@ -221,7 +223,7 @@ class TrackedProductsNotifier extends Notifier<AsyncValue<List<TrackedProduct>>>
 
       final trackedProduct = TrackedProduct(
         id: 'tracked_${product.id}',
-        userId: 'user_001',
+        userId: storageService.getUser()?.id ?? 'user_001',
         product: syncedProduct,
         addedAt: DateTime.now(),
         targetPrice: _targetPrices[product.id],

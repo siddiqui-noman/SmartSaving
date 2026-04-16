@@ -8,10 +8,12 @@ class ProductSearchBar extends StatelessWidget {
     required this.controller,
     required this.onChanged,
     required this.onClear,
+    this.onSubmitted,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final ValueChanged<String>? onSubmitted;
   final VoidCallback onClear;
 
   @override
@@ -24,6 +26,7 @@ class ProductSearchBar extends StatelessWidget {
         return TextField(
           controller: controller,
           onChanged: onChanged,
+          onSubmitted: onSubmitted,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             hintText: AppStrings.searchProducts,

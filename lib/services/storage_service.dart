@@ -9,6 +9,7 @@ class StorageService {
   static const _trackedProductsKey = 'smart_saving_tracked_products';
   static const _priceHistoryKey = 'smart_saving_price_history';
   static const _targetPricesKey = 'smart_saving_target_prices';
+  static const _recentSearchesKey = 'smart_saving_recent_searches';
 
   late SharedPreferences _prefs;
 
@@ -47,6 +48,15 @@ class StorageService {
   Future<void> clearUser() async {
     await _prefs.remove(_userKey);
     await _prefs.remove(_tokenKey);
+  }
+
+  // Recent Searches
+  Future<void> saveRecentSearches(List<String> searches) async {
+    await _prefs.setStringList(_scoped(_recentSearchesKey), searches);
+  }
+
+  List<String> getRecentSearches() {
+    return _prefs.getStringList(_scoped(_recentSearchesKey)) ?? [];
   }
 
   // Tracked products

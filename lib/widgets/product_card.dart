@@ -8,6 +8,7 @@ class ProductCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onTrackTap;
   final bool isTracked;
+  final double? width;
 
   const ProductCard({
     super.key,
@@ -15,18 +16,22 @@ class ProductCard extends StatelessWidget {
     required this.onTap,
     this.onTrackTap,
     this.isTracked = false,
+    this.width,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    return SizedBox(
+      width: width,
       child: Card(
         elevation: AppDimensions.cardElevation,
         margin: const EdgeInsets.all(AppDimensions.paddingM),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.borderRadiusL),
-        ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.borderRadiusL),
+      ),
+      clipBehavior: Clip.antiAlias, // Ensures InkWell rippling stays inside bounds
+      child: InkWell(
+        onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -40,30 +45,33 @@ class ProductCard extends StatelessWidget {
                 ),
                 child: Container(
                   color: Colors.grey[200],
-                  child: Image.network(
-                    product.imageUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) {
-                        return child;
-                      }
-                      return const Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Center(
-                        child: Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey[400],
-                          size: 40,
-                        ),
-                      );
-                    },
+                  child: Hero(
+                    tag: 'product_image_${product.id}',
+                    child: Image.network(
+                      product.imageUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) {
+                          return child;
+                        }
+                        return const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey[400],
+                            size: 40,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -74,13 +82,20 @@ class ProductCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Product name
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  // Product name (Fixed height to force uniform rendering)
+                  SizedBox(
+                    height: 46,
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Text(
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              height: 1.2,
+                            ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: AppDimensions.paddingS),
@@ -109,26 +124,33 @@ class ProductCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Best Price',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: Color(AppColors.textSecondary),
-                                ),
-                          ),
-                          Text(
-                            CurrencyFormatter.format(product.bestPrice),
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(AppColors.success),
-                                ),
-                          ),
-                        ],
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Best Price',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Color(AppColors.textSecondary),
+                                  ),
+                            ),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                CurrencyFormatter.format(product.bestPrice),
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(AppColors.success),
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: AppDimensions.paddingS),
                       Chip(
                         label: Text(
                           product.bestPlatform,
@@ -163,6 +185,7 @@ class ProductCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
