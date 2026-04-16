@@ -15,6 +15,7 @@ class PriceComparisonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bestPrice = product.bestPrice;
     final bestPlatform = product.bestPlatform;
     final amazonPrice = product.amazonPrice;
@@ -45,7 +46,7 @@ class PriceComparisonCard extends StatelessWidget {
                   price: amazonPrice,
                   isBest: bestPlatform == 'Amazon',
                 ),
-                Container(width: 1, height: 60, color: Colors.grey[300]),
+                Container(width: 1, height: 60, color: theme.dividerColor),
                 _PlatformPrice(
                   platform: 'Flipkart',
                   price: flipkartPrice,
@@ -142,34 +143,53 @@ class _PlatformPrice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final primaryColor = const Color(AppColors.primary);
+    final successColor = const Color(AppColors.success);
+
     return Column(
       children: [
-        if (isBest)
-          Chip(
-            label: const Text(
-              'BEST',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            backgroundColor: Color(AppColors.success),
-          ),
-        const SizedBox(height: AppDimensions.paddingS),
+        // FIXED ALIGNMENT: Always have a box, but show label only if best
+        SizedBox(
+          height: 34,
+          child: isBest
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: successColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: successColor.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    'BEST DEAL',
+                    style: TextStyle(
+                      color: successColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        const SizedBox(height: 12),
+        // Platform Name
         Text(
           platform,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Color(isBest ? AppColors.success : AppColors.textPrimary),
-            fontWeight: isBest ? FontWeight.bold : FontWeight.normal,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: isBest ? successColor : onSurface.withOpacity(0.6),
+            fontWeight: isBest ? FontWeight.w900 : FontWeight.w600,
           ),
         ),
-        const SizedBox(height: AppDimensions.paddingS),
+        const SizedBox(height: 6),
+        // Price Text
         Text(
           CurrencyFormatter.format(price),
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Color(isBest ? AppColors.success : AppColors.textPrimary),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            fontSize: 18, // Slightly larger for premium feel
+            color: isBest ? successColor : onSurface,
           ),
         ),
       ],

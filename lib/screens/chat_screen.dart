@@ -8,11 +8,11 @@ import '../services/chat_service.dart';
 import '../utils/constants.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
-  final Product product;
+  final Product? product;
 
   const ChatScreen({
     super.key,
-    required this.product,
+    this.product, // optional — null means general assistant mode
   });
 
   @override
@@ -30,8 +30,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     _messages.add(
       _ChatMessage.bot(
-        'Hi! I am your Smart Assistant for ${widget.product.name}. '
-        'Ask me if you should buy now or wait!',
+        widget.product != null
+            ? 'Hi! I am your Smart Assistant for ${widget.product!.name}. '
+                'Ask me if you should buy now or wait!'
+            : 'Hi! I am your SmartSaving AI Assistant 🤖\n'
+                'Ask me anything — compare products, find deals, or get buying advice!',
         includeInContext: false,
       ),
     );
@@ -45,11 +48,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   TrackedProduct? _trackedProductForCurrentItem() {
+    if (widget.product == null) return null;
     final trackedAsync = ref.read(trackedProductsProvider);
     return trackedAsync.maybeWhen(
       data: (items) {
         for (final item in items) {
-          if (item.product.id == widget.product.id) {
+          if (item.product.id == widget.product!.id) {
             return item;
           }
         }
@@ -148,10 +152,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
-          _ChatContextBanner(
-            product: widget.product,
-            trackedProduct: trackedProduct,
-          ),
+          if (widget.product != null)
+            _ChatContextBanner(
+              product: widget.product!,
+              trackedProduct: trackedProduct,
+            ),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -244,12 +249,18 @@ class _MessageBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: const BoxConstraints(maxWidth: 280),
         decoration: BoxDecoration(
-          color: isUser ? Colors.blue : Colors.grey.shade300,
+          color: isUser
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           text,
-          style: TextStyle(color: isUser ? Colors.white : Colors.black87),
+          style: TextStyle(
+            color: isUser
+                ? Colors.white
+                : Theme.of(context).colorScheme.onSurface,
+          ),
         ),
       ),
     );
@@ -302,39 +313,118 @@ class _ChatContextBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(AppColors.primary).withOpacity(0.08),
+        color: theme.colorScheme.primaryContainer.withOpacity(0.1),
         border: Border(
           bottom: BorderSide(
-            color: Colors.black.withOpacity(0.06),
+            color: theme.dividerColor,
+            width: 0.5,
           ),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            product.name,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(AppColors.primary),
+                      const Color(AppColors.primary).withOpacity(0.7),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(AppColors.primary).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Text(
+                      'SMART INSIGHTS ACTIVE',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: const Color(AppColors.primary),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Ask about timing, platform choice, savings, or whether this is near a recent low.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.black.withOpacity(0.68),
+          const SizedBox(height: 16),
+          _InsightItem(icon: Icons.compare_arrows_rounded, text: 'Real-time price comparison across top platforms'),
+          const SizedBox(height: 8),
+          _InsightItem(icon: Icons.query_stats_rounded, text: 'Historical trend analysis and "Buy/Wait" verdict'),
+          const SizedBox(height: 8),
+          _InsightItem(icon: Icons.notifications_active_rounded, text: 'Instant alerts for your target price drops'),
+          const SizedBox(height: 18),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: chips.map((chip) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: chip,
+              )).toList(),
             ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: chips,
           ),
         ],
       ),
+    );
+  }
+}
+
+class _InsightItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InsightItem({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: const Color(AppColors.primary).withOpacity(0.6)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -350,21 +440,40 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        color: isDark 
+            ? Colors.white.withOpacity(0.05) 
+            : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark 
+              ? Colors.white.withOpacity(0.1) 
+              : Colors.black.withOpacity(0.08)
+        ),
+        boxShadow: isDark ? null : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: const Color(AppColors.primary)),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 11, 
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+            ),
           ),
         ],
       ),
@@ -383,7 +492,7 @@ class _TypingBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.grey.shade300,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Row(

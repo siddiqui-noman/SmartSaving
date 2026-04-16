@@ -7,6 +7,7 @@ class SmartSavingAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final VoidCallback? onBackPressed;
   final bool centerTitle;
+  final bool showDrawerIcon;
 
   const SmartSavingAppBar({
     super.key,
@@ -15,6 +16,7 @@ class SmartSavingAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.onBackPressed,
     this.centerTitle = false,
+    this.showDrawerIcon = false,
   });
 
   @override
@@ -22,6 +24,19 @@ class SmartSavingAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget? leadingWidget;
+    if (onBackPressed != null) {
+      leadingWidget = IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: onBackPressed,
+      );
+    } else if (showDrawerIcon) {
+      leadingWidget = IconButton(
+        icon: const Icon(Icons.menu_rounded, color: Colors.white),
+        onPressed: () => Scaffold.of(context).openDrawer(),
+      );
+    }
+
     return AppBar(
       title: Column(
         mainAxisSize: MainAxisSize.min,
@@ -48,12 +63,8 @@ class SmartSavingAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: const Color(AppColors.primary),
       elevation: 2,
       actions: actions,
-      leading: onBackPressed != null
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: onBackPressed,
-            )
-          : null,
+      leading: leadingWidget,
     );
   }
 }
+

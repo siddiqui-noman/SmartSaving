@@ -7,6 +7,7 @@ import 'search_screen.dart';
 import '../widgets/product_card.dart';
 import '../widgets/loading_skeleton.dart';
 import '../widgets/app_bar.dart';
+import '../widgets/app_drawer.dart';
 import '../utils/constants.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -18,6 +19,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedIndex = 0;
+  final ScrollController _dashboardScrollController = ScrollController();
 
   @override
   void initState() {
@@ -26,12 +28,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   @override
+  void dispose() {
+    _dashboardScrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTrending() {
+    if (_dashboardScrollController.hasClients) {
+      _dashboardScrollController.animateTo(
+        _dashboardScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final screens = [
       DashboardScreen(
+        scrollController: _dashboardScrollController,
         onCategoryTap: (category) {
           setState(() {
-            _selectedIndex = 1; // Slide to the new Search tab automatically!
+            _selectedIndex = 1;
           });
         },
       ),
@@ -41,6 +60,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ];
 
     return Scaffold(
+      drawer: AppDrawer(
+        selectedIndex: _selectedIndex,
+        onTabSelected: (index) => setState(() => _selectedIndex = index),
+        onScrollToTrending: _scrollToTrending,
+      ),
       appBar: SmartSavingAppBar(
         title: _selectedIndex == 0
             ? AppStrings.appName
@@ -50,6 +74,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? AppStrings.trackedProducts
             : AppStrings.profile,
         showLogo: false,
+        showDrawerIcon: true,
       ),
       body: screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -86,51 +111,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return trackedAsync.when(
           data: (tracked) {
             if (tracked.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.favorite_border,
-                      size: 64,
-                      color: Colors.grey[300],
-                    ),
-                    const SizedBox(height: AppDimensions.paddingM),
-                    Text(
-                      AppStrings.noTrackedProducts,
-                      style: Theme.of(context).textTheme.titleMedium,
+              return RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(trackedProductsProvider);
+                  await Future.delayed(const Duration(milliseconds: 1200));
+                },
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.favorite_border,
+                              size: 64,
+                              color: Colors.grey[300],
+                            ),
+                            const SizedBox(height: AppDimensions.paddingM),
+                            Text(
+                              AppStrings.noTrackedProducts,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
               );
             }
 
-            return ListView.builder(
-              itemCount: tracked.length,
-              itemBuilder: (context, index) {
-                final trackedProduct = tracked[index];
-                final product = trackedProduct.product;
-                final isTracked = ref.watch(
-                  isProductTrackedProvider(product.id),
-                );
-
-                return ProductCard(
-                  product: product,
-                  onTap: () {
-                    Navigator.of(
-                      context,
-                    ).pushNamed('/product-detail', arguments: product);
-                  },
-                  onTrackTap: () async {
-                    if (isTracked) {
-                      await ref
-                          .read(trackedProductsProvider.notifier)
-                          .removeTrackedProduct(product.id);
-                    }
-                  },
-                  isTracked: isTracked,
-                );
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(trackedProductsProvider);
+                await Future.delayed(const Duration(milliseconds: 1200));
               },
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: tracked.length,
+                itemBuilder: (context, index) {
+                  final trackedProduct = tracked[index];
+                  final product = trackedProduct.product;
+                  final isTracked = ref.watch(
+                    isProductTrackedProvider(product.id),
+                  );
+
+                  return ProductCard(
+                    product: product,
+                    onTap: () {
+                      Navigator.of(
+                        context,
+                      ).pushNamed('/product-detail', arguments: product);
+                    },
+                    onTrackTap: () async {
+                      if (isTracked) {
+                        await ref
+                            .read(trackedProductsProvider.notifier)
+                            .removeTrackedProduct(product.id);
+                      }
+                    },
+                    isTracked: isTracked,
+                  );
+                },
+              ),
             );
           },
           loading: () => const ProductListSkeleton(),

@@ -385,6 +385,36 @@ class TrackedProductsNotifier extends Notifier<AsyncValue<List<TrackedProduct>>>
     }
   }
 
+  /// Removes only the price alert (target price) without untracking the product.
+  Future<void> removeTargetPrice(String productId) async {
+    try {
+      _targetPrices.remove(productId);
+      await storageService.removeTargetPrice(productId);
+
+      final currentState = state.maybeWhen(
+        data: (items) => items,
+        orElse: () => <TrackedProduct>[],
+      );
+
+      final updatedState = currentState.map((trackedProduct) {
+        if (trackedProduct.product.id != productId) return trackedProduct;
+        return TrackedProduct(
+          id: trackedProduct.id,
+          userId: trackedProduct.userId,
+          product: trackedProduct.product,
+          addedAt: trackedProduct.addedAt,
+          targetPrice: null, // alert cleared
+          priceHistory: trackedProduct.priceHistory,
+        );
+      }).toList();
+
+      state = AsyncValue.data(updatedState);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+
   Future<void> _evaluateAlerts(TrackedProduct trackedProduct) async {
     if (trackedProduct.priceHistory.isEmpty) return;
 

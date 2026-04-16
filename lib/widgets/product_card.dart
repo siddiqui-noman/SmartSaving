@@ -44,7 +44,7 @@ class ProductCard extends StatelessWidget {
                   topRight: Radius.circular(AppDimensions.borderRadiusL),
                 ),
                 child: Container(
-                  color: Colors.grey[200],
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Hero(
                     tag: 'product_image_${product.id}',
                     child: Image.network(
@@ -104,7 +104,7 @@ class ProductCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(AppColors.textSecondary),
+                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
                     ),
                   ),
                   const SizedBox(height: AppDimensions.paddingS),
@@ -132,7 +132,7 @@ class ProductCard extends StatelessWidget {
                               'Best Price',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color: Color(AppColors.textSecondary),
+                                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
                                   ),
                             ),
                             FittedBox(

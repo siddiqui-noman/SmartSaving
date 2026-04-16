@@ -16,6 +16,18 @@ final productsProvider =
   return ProductsNotifier();
 });
 
+// Provides 6 completely randomized deals that hold their state identically until explicitly refreshed
+final trendingDealsProvider = Provider<List<Product>>((ref) {
+  final productsList = ref.watch(productsProvider).maybeWhen(
+    data: (products) => products.toList(),
+    orElse: () => <Product>[],
+  );
+  
+  if (productsList.isEmpty) return [];
+  productsList.shuffle();
+  return productsList.take(6).toList();
+});
+
 class ProductsNotifier extends Notifier<AsyncValue<List<Product>>> {
   String _lastQuery = '';
 

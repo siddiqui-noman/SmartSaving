@@ -10,12 +10,14 @@ import '../widgets/loading_skeleton.dart';
 
 class DashboardScreen extends ConsumerWidget {
   final Function(String) onCategoryTap;
+  final ScrollController? scrollController;
 
-  const DashboardScreen({super.key, required this.onCategoryTap});
+  const DashboardScreen({super.key, required this.onCategoryTap, this.scrollController});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsProvider);
+    final trendingDeals = ref.watch(trendingDealsProvider); // Statically cached random UI scope
     final userAsync = ref.watch(currentUserProvider);
     final userName = userAsync.value?.name?.split(' ').first ?? 'User';
     final trackedIds = ref.watch(
@@ -28,19 +30,29 @@ class DashboardScreen extends ConsumerWidget {
     );
 
     return productsAsync.when(
-      data: (products) => _buildDashboard(products, trackedIds, userName, context, ref),
+      data: (products) => _buildDashboard(products, trendingDeals, trackedIds, userName, context, ref),
       loading: () => const ProductListSkeleton(),
       error: (error, stack) => Center(child: Text('Failed to load dashboard: $error')),
     );
   }
 
   Widget _buildDashboard(
-      List<Product> products, Set<String> trackedIds, String userName, BuildContext context, WidgetRef ref) {
+      List<Product> products, List<Product> trendingDeals, Set<String> trackedIds, String userName, BuildContext context, WidgetRef ref) {
     
     final categories = ['Phones', 'Laptops', 'Audio', 'Gaming', 'TVs', 'Cameras', 'Accessories'];
 
-    return CustomScrollView(
-      slivers: [
+    return RefreshIndicator(
+      onRefresh: () async {
+        // Explicitly invalidate our isolated Trending cache to trigger a structural reroll
+        ref.invalidate(trendingDealsProvider);
+        // Also refresh global product memory 
+        ref.invalidate(productsProvider);
+        await Future.delayed(const Duration(milliseconds: 1200));
+      },
+      child: CustomScrollView(
+        controller: scrollController,
+        physics: const AlwaysScrollableScrollPhysics(), // Ensure it can be pulled even if not overflowing vertically
+        slivers: [
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -57,7 +69,6 @@ class DashboardScreen extends ConsumerWidget {
                       'Hello, $userName 👋',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: const Color(AppColors.textPrimary),
                           ),
                     ),
                   ),
@@ -67,27 +78,30 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
-            child: Wrap(
-              spacing: 8.0,
-              runSpacing: 8.0,
-              children: categories.map((cat) {
-                return ActionChip(
-                  label: Text(cat, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(AppColors.primaryDark))),
-                  backgroundColor: const Color(AppColors.primary).withOpacity(0.1),
-                  side: BorderSide.none,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+          child: SizedBox(
+            height: 50,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingM),
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final cat = categories[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ActionChip(
+                    label: Text(cat, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+                    backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    onPressed: () {
+                      ref.read(productsProvider.notifier).searchProducts(cat);
+                      onCategoryTap(cat);
+                    },
                   ),
-                  onPressed: () {
-                    // Update search query actively behind the scenes
-                    ref.read(productsProvider.notifier).searchProducts(cat);
-                    // Pass to parent to flip layout into Search tab
-                    onCategoryTap(cat);
-                  },
                 );
-              }).toList(),
+              },
             ),
           ),
         ),
@@ -148,9 +162,9 @@ class DashboardScreen extends ConsumerWidget {
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingS),
-              itemCount: products.take(6).length,
+              itemCount: trendingDeals.length,
               itemBuilder: (context, index) {
-                final product = products[index];
+                final product = trendingDeals[index];
                 final isTracked = trackedIds.contains(product.id);
                 return ProductCard(
                   width: 280,
@@ -177,6 +191,7 @@ class DashboardScreen extends ConsumerWidget {
         ),
         const SliverPadding(padding: EdgeInsets.only(bottom: 60)),
       ],
+    ),
     );
   }
 }

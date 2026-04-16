@@ -48,10 +48,11 @@ class HistorySummary(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    is_general_mode: bool = False
     product_id: Optional[str] = None
-    product_name: str
-    current_price: float
-    category: str
+    product_name: Optional[str] = None
+    current_price: Optional[float] = None
+    category: Optional[str] = None
     amazon_price: Optional[float] = None
     flipkart_price: Optional[float] = None
     best_platform: Optional[str] = None
@@ -185,6 +186,25 @@ def _rule_based_fallback(payload: ChatRequest) -> str:
 async def chat_with_assistant(payload: ChatRequest):
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="Gemini API Key missing.")
+
+    # General mode — no product context
+    if payload.is_general_mode:
+        general_prompt = (
+            "You are the SmartSaving Shopping Expert AI.\n"
+            "Answer the user's question about products, deals, prices, or shopping advice.\n"
+            "Be concise (under 120 words), helpful, and data-aware.\n\n"
+            f"Conversation history:\n{_conversation_block(payload.conversation_history)}\n\n"
+            f"User: {payload.message}"
+        )
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=general_prompt,
+                config=types.GenerateContentConfig(max_output_tokens=300, temperature=0.7),
+            )
+            return ChatResponse(reply=response.text.strip())
+        except Exception as e:
+            return ChatResponse(reply=f"Sorry, I couldn't reach my brain right now. Error: {str(e)}")
 
     full_prompt = (
         f"{SYSTEM_PROMPT}\n\n"

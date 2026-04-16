@@ -177,7 +177,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               leading: Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -187,27 +187,76 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ],
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  icon: Icon(Icons.arrow_back,
+                      color: Theme.of(context).colorScheme.onSurface),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ),
               flexibleSpace: FlexibleSpaceBar(
-                background: Hero(
-                  tag: 'product_image_${product.id}',
-                  child: Container(
-                    color: Colors.grey[100],
-                    child: Image.network(
-                      product.imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey[400],
-                            size: 60,
+                background: GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return Dialog(
+                          backgroundColor: Colors.black87,
+                          insetPadding: EdgeInsets.zero,
+                          child: Stack(
+                            fit: StackFit.loose,
+                            children: [
+                              InteractiveViewer(
+                                panEnabled: true,
+                                minScale: 1.0,
+                                maxScale: 4.0,
+                                child: Center(
+                                  child: Hero(
+                                    tag: 'product_image_fullscreen_${product.id}',
+                                    child: Image.network(
+                                      product.imageUrl,
+                                      fit: BoxFit.contain,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 40,
+                                right: 20,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black45,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                                    onPressed: () => Navigator.of(context).pop(),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },
+                    );
+                  },
+                  child: Hero(
+                    tag: 'product_image_fullscreen_${product.id}',
+                    child: Container(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      child: Image.network(
+                        product.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Icon(
+                              Icons.image_not_supported,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              size: 60,
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -294,14 +343,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     width: double.infinity,
                     height: AppDimensions.buttonHeight,
                     child: OutlinedButton(
-                      onPressed: isTracked
-                          ? () {
-                              Navigator.of(context).pushNamed(
-                                '/price-history',
-                                arguments: product.id,
-                              );
-                            }
-                          : null,
+                      onPressed: () {
+                        Navigator.of(context).pushNamed(
+                          '/price-history',
+                          arguments: product.id,
+                        );
+                      },
                       child: const Text(AppStrings.priceHistory),
                     ),
                   ),

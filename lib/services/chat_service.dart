@@ -34,7 +34,7 @@ class ChatService {
 
   Future<String> sendMessage({
     required String message,
-    required Product product,
+    Product? product,
     TrackedProduct? trackedProduct,
     List<ChatHistoryEntry> history = const [],
   }) async {
@@ -96,10 +96,20 @@ class ChatService {
 
   Map<String, dynamic> _buildPayload({
     required String message,
-    required Product product,
+    Product? product,
     TrackedProduct? trackedProduct,
     required List<ChatHistoryEntry> history,
   }) {
+    // General mode — no product context
+    if (product == null) {
+      return {
+        'message': message,
+        'is_general_mode': true,
+        'conversation_history':
+            history.take(6).map((e) => e.toJson()).toList(),
+      };
+    }
+
     var priceHistory = trackedProduct?.priceHistory ?? const <PriceSnapshot>[];
     
     // Generate temporary insight data on the fly if the item isn't tracked yet!
