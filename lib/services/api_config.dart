@@ -43,12 +43,20 @@ class ApiConfig {
   // Maximum results per search
   static const int maxResults = 10;
 
+  // Set this to true before building the production APK
+  static const bool isProduction = false;
+
+  // Your Render URL (e.g. https://smartsaving.onrender.com)
+  static const String productionBaseUrl = 'https://YOUR_RENDER_URL_HERE.onrender.com';
+
   // Backend API base URL.
   // Override with: --dart-define=BACKEND_BASE_URL=http://<host>:8000
-  static const String backendBaseUrl = String.fromEnvironment(
-    'BACKEND_BASE_URL',
-    defaultValue: 'http://10.10.13.128:8000',
-  );
+  static const String backendBaseUrl = isProduction 
+    ? productionBaseUrl 
+    : String.fromEnvironment(
+        'BACKEND_BASE_URL',
+        defaultValue: 'http://10.10.13.128:8000',
+      );
 
   // Smart Assistant endpoint
   static String get chatApiUrl => '$backendBaseUrl/chat';
