@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 import '../models/user.dart';
+import '../utils/constants.dart';
 import 'storage_service.dart';
 
 class AuthService {
@@ -14,9 +18,6 @@ class AuthService {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(milliseconds: 800));
-
       // Validation
       if (email.isEmpty || password.isEmpty) {
         return {'success': false, 'message': 'Email and password are required'};
@@ -33,22 +34,32 @@ class AuthService {
         };
       }
 
-      // Mock successful login
-      final user = User(
-        id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-        email: email,
-        name: email.split('@')[0],
-        createdAt: DateTime.now(),
+      // Real HTTP request to login
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
       );
 
-      final token = 'token_${DateTime.now().millisecondsSinceEpoch}';
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final user = User.fromJson(data['user']);
+        final token = data['access_token'];
 
-      await storageService.saveUser(user, token);
-      _currentUser = user;
+        await storageService.saveUser(user, token);
+        _currentUser = user;
 
-      return {'success': true, 'user': user, 'token': token};
+        return {'success': true, 'user': user, 'token': token};
+      } else {
+        final errorData = jsonDecode(response.body);
+        final detail = errorData['detail'] ?? 'Login failed';
+        return {'success': false, 'message': detail};
+      }
     } catch (e) {
-      return {'success': false, 'message': 'Login failed: $e'};
+      return {'success': false, 'message': 'Network error: $e'};
     }
   }
 
@@ -58,9 +69,6 @@ class AuthService {
     String name,
   ) async {
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(milliseconds: 1000));
-
       // Validation
       if (email.isEmpty || password.isEmpty || name.isEmpty) {
         return {'success': false, 'message': 'All fields are required'};
@@ -84,22 +92,33 @@ class AuthService {
         };
       }
 
-      // Mock successful registration
-      final user = User(
-        id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-        email: email,
-        name: name,
-        createdAt: DateTime.now(),
+      // Real HTTP request to register
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          'name': name,
+        }),
       );
 
-      final token = 'token_${DateTime.now().millisecondsSinceEpoch}';
+      if (response.statusCode == 200) {
+         final data = jsonDecode(response.body);
+         final user = User.fromJson(data['user']);
+         final token = data['access_token'];
 
-      await storageService.saveUser(user, token);
-      _currentUser = user;
+         await storageService.saveUser(user, token);
+         _currentUser = user;
 
-      return {'success': true, 'user': user, 'token': token};
+         return {'success': true, 'user': user, 'token': token};
+       } else {
+         final errorData = jsonDecode(response.body);
+         final detail = errorData['detail'] ?? 'Registration failed';
+         return {'success': false, 'message': detail};
+       }
     } catch (e) {
-      return {'success': false, 'message': 'Registration failed: $e'};
+      return {'success': false, 'message': 'Network error: $e'};
     }
   }
 

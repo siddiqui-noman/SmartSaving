@@ -85,3 +85,8 @@ class MockData {
   static const mockImageUrl =
       'https://via.placeholder.com/300x300?text=Product';
 }
+
+class AppConfig {
+  // Use 10.0.2.2 for Android Emulator, or your local machine IP (e.g., 10.10.13.128) for physical devices
+  static const String apiBaseUrl = 'http://10.10.13.128:8000';
+}

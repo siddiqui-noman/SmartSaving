@@ -67,14 +67,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(AppColors.primary), Color(AppColors.primaryDark)],
+      body: SafeArea(
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(AppColors.primary), Color(AppColors.primaryDark)],
+            ),
           ),
-        ),
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppDimensions.paddingL),
@@ -102,6 +105,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(AppDimensions.paddingL),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -224,10 +228,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                         // Login link
                         Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          child: Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(AppStrings.alreadyHaveAccount),
+                              const SizedBox(width: 4),
                               GestureDetector(
                                 onTap: () {
                                   Navigator.of(
@@ -253,6 +259,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import '../models/product.dart';
 import '../models/tracked_product.dart';
 import 'api_config.dart';
+import 'amazon_service.dart';
+import 'flipkart_service.dart';
+import 'dart:math';
 
 class ChatHistoryEntry {
   const ChatHistoryEntry({
@@ -97,7 +100,13 @@ class ChatService {
     TrackedProduct? trackedProduct,
     required List<ChatHistoryEntry> history,
   }) {
-    final priceHistory = trackedProduct?.priceHistory ?? const <PriceSnapshot>[];
+    var priceHistory = trackedProduct?.priceHistory ?? const <PriceSnapshot>[];
+    
+    // Generate temporary insight data on the fly if the item isn't tracked yet!
+    if (priceHistory.isEmpty) {
+      priceHistory = _generateTemporaryHistory(product);
+    }
+
     final bestPriceSeries =
         priceHistory.map((snapshot) => snapshot.bestPrice).toList();
     final recentPriceHistory = priceHistory.length <= 14
@@ -144,6 +153,30 @@ class ChatService {
         'trend_7d': _trendLast(bestPriceSeries, 7),
       },
     };
+  }
+
+  List<PriceSnapshot> _generateTemporaryHistory(Product product) {
+    try {
+      final amazonHistory = amazonService.getPriceHistory(product.id);
+      final flipkartHistory = flipkartService.getPriceHistory(product.id);
+      final count = min(amazonHistory.length, flipkartHistory.length);
+
+      if (count == 0) return [];
+
+      final now = DateTime.now();
+      final endDate = DateTime(now.year, now.month, now.day);
+      final startDate = endDate.subtract(Duration(days: count - 1));
+
+      return List.generate(count, (index) {
+        return PriceSnapshot(
+          amazonPrice: amazonHistory[index],
+          flipkartPrice: flipkartHistory[index],
+          timestamp: startDate.add(Duration(days: index)),
+        );
+      });
+    } catch (_) {
+      return [];
+    }
   }
 
   double? _averageLast(List<double> values, int count) {

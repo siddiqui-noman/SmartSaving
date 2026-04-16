@@ -16,6 +16,14 @@ class StorageService {
     _prefs = await SharedPreferences.getInstance();
   }
 
+  String _scoped(String baseKey) {
+    final user = getUser();
+    if (user != null) {
+      return '${user.id}_$baseKey';
+    }
+    return baseKey;
+  }
+
   // User management
   Future<void> saveUser(User user, String token) async {
     await _prefs.setString(_userKey, jsonEncode(user.toJson()));
@@ -43,11 +51,11 @@ class StorageService {
 
   // Tracked products
   Future<void> saveTrackedProducts(List<String> productIds) async {
-    await _prefs.setStringList(_trackedProductsKey, productIds);
+    await _prefs.setStringList(_scoped(_trackedProductsKey), productIds);
   }
 
   List<String> getTrackedProducts() {
-    return _prefs.getStringList(_trackedProductsKey) ?? [];
+    return _prefs.getStringList(_scoped(_trackedProductsKey)) ?? [];
   }
 
   Future<void> addTrackedProduct(String productId) async {
@@ -72,13 +80,13 @@ class StorageService {
     String productId,
     List<PriceSnapshot> history,
   ) async {
-    final historyMap = _readJsonMap(_priceHistoryKey);
+    final historyMap = _readJsonMap(_scoped(_priceHistoryKey));
     historyMap[productId] = history.map((snapshot) => snapshot.toJson()).toList();
-    await _prefs.setString(_priceHistoryKey, jsonEncode(historyMap));
+    await _prefs.setString(_scoped(_priceHistoryKey), jsonEncode(historyMap));
   }
 
   List<PriceSnapshot> getPriceHistory(String productId) {
-    final historyMap = _readJsonMap(_priceHistoryKey);
+    final historyMap = _readJsonMap(_scoped(_priceHistoryKey));
     final rawHistory = historyMap[productId];
     if (rawHistory is! List) return [];
 
@@ -88,34 +96,34 @@ class StorageService {
   }
 
   Future<void> removePriceHistory(String productId) async {
-    final historyMap = _readJsonMap(_priceHistoryKey);
+    final historyMap = _readJsonMap(_scoped(_priceHistoryKey));
     historyMap.remove(productId);
-    await _prefs.setString(_priceHistoryKey, jsonEncode(historyMap));
+    await _prefs.setString(_scoped(_priceHistoryKey), jsonEncode(historyMap));
   }
 
   Future<void> saveTargetPrice(String productId, double targetPrice) async {
-    final targetMap = _readJsonMap(_targetPricesKey);
+    final targetMap = _readJsonMap(_scoped(_targetPricesKey));
     targetMap[productId] = targetPrice;
-    await _prefs.setString(_targetPricesKey, jsonEncode(targetMap));
+    await _prefs.setString(_scoped(_targetPricesKey), jsonEncode(targetMap));
   }
 
   double? getTargetPrice(String productId) {
-    final targetMap = _readJsonMap(_targetPricesKey);
+    final targetMap = _readJsonMap(_scoped(_targetPricesKey));
     final value = targetMap[productId];
     return (value as num?)?.toDouble();
   }
 
   Map<String, double> getAllTargetPrices() {
-    final targetMap = _readJsonMap(_targetPricesKey);
+    final targetMap = _readJsonMap(_scoped(_targetPricesKey));
     return targetMap.map((key, value) {
       return MapEntry(key, (value as num?)?.toDouble() ?? 0.0);
     });
   }
 
   Future<void> removeTargetPrice(String productId) async {
-    final targetMap = _readJsonMap(_targetPricesKey);
+    final targetMap = _readJsonMap(_scoped(_targetPricesKey));
     targetMap.remove(productId);
-    await _prefs.setString(_targetPricesKey, jsonEncode(targetMap));
+    await _prefs.setString(_scoped(_targetPricesKey), jsonEncode(targetMap));
   }
 
   // Generic key-value storage

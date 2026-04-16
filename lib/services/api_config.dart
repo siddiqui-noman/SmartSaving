@@ -47,7 +47,7 @@ class ApiConfig {
   // Override with: --dart-define=BACKEND_BASE_URL=http://<host>:8000
   static const String backendBaseUrl = String.fromEnvironment(
     'BACKEND_BASE_URL',
-    defaultValue: 'http://localhost:8000',
+    defaultValue: 'http://10.10.13.128:8000',
   );
 
   // Smart Assistant endpoint

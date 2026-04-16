@@ -7,8 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from chat_endpoint import router as chat_router
-
-
+from auth import router as auth_router
+import database
 def _allowed_origins() -> list[str]:
     raw = os.getenv("CORS_ALLOW_ORIGINS", "*").strip()
     if raw == "*":
@@ -32,7 +32,11 @@ app.add_middleware(
 )
 
 app.include_router(chat_router)
+app.include_router(auth_router)
 
+@app.on_event("startup")
+async def startup_event():
+    database.init_db()
 
 @app.get("/health", tags=["system"])
 async def health() -> dict[str, str]:
