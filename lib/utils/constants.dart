@@ -1,3 +1,5 @@
+import '../services/api_config.dart';
+
 class AppColors {
   // Premium tech-startup aesthetics (Deep Ocean Blue / Minimalist)
   static const primary = 0xFF2563EB; // Azure Blue
@@ -88,6 +90,5 @@ class MockData {
 }
 
 class AppConfig {
-  // Use 10.0.2.2 for Android Emulator, or your local machine IP (e.g., 10.10.13.128) for physical devices
-  static const String apiBaseUrl = 'http://10.10.13.128:8000';
+  static const String apiBaseUrl = ApiConfig.backendBaseUrl;
 }
